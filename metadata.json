@@ -1,0 +1,6 @@
+{
+  "name": "Newark Medical Associates",
+  "description": "Modern, patient-centered primary care, preventive medicine, and on-site diagnostics clinic in Newark, NJ.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

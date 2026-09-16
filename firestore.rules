@@ -1,0 +1,143 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Public CMS Site Content (Homepage, About, Services, Diagnostics, Header, Footer)
+    match /cms_content/{document} {
+      allow read, write: if true;
+    }
+
+    // Dynamic Testimonials
+    match /testimonials/{document} {
+      allow read, write: if true;
+    }
+
+    // Dynamic Providers & Doctor Profiles
+    match /providers/{document} {
+      allow read, write: if true;
+    }
+    match /doctor_profile/{document} {
+      allow read, write: if true;
+    }
+    match /doctor_profiles/{document} {
+      allow read, write: if true;
+    }
+
+    // Dynamic Clinical Services
+    match /services/{document} {
+      allow read, write: if true;
+    }
+
+    // Clinical Conditions & Chronic Disease Education
+    match /conditions/{document} {
+      allow read, write: if true;
+    }
+
+    // Frequently Asked Questions
+    match /faqs/{document} {
+      allow read, write: if true;
+    }
+
+    // Practice Locations & Transit Guides
+    match /locations/{document} {
+      allow read, write: if true;
+    }
+
+    // Clinical Clinic Gallery & Photos
+    match /gallery/{document} {
+      allow read, write: if true;
+    }
+
+    // Emergency & Announcement Popups
+    match /popups/{document} {
+      allow read, write: if true;
+    }
+
+    // Custom Pages & Landing Pages
+    match /pages/{document} {
+      allow read, write: if true;
+    }
+
+    // Header, Footer and Layout Structure
+    match /layout/{document} {
+      allow read, write: if true;
+    }
+
+    // Media Library Assets
+    match /media_library/{document} {
+      allow read, write: if true;
+    }
+
+    // Centralized website image registry used by the public site and admin media manager
+    match /site_media/{document} {
+      allow read, write: if true;
+    }
+
+    // Practice Global Settings & SEO
+    match /settings/{document} {
+      allow read, write: if true;
+    }
+
+    // Blog Articles (CMS + SEO)
+    match /blogs/{document} {
+      allow read, write: if true;
+    }
+
+    // Blog Categories, Authors, and Tags
+    match /blog_categories/{document} {
+      allow read, write: if true;
+    }
+    match /blog_authors/{document} {
+      allow read, write: if true;
+    }
+    match /blog_tags/{document} {
+      allow read, write: if true;
+    }
+
+    // Page-level SEO Metadata
+    match /page_seo/{document} {
+      allow read, write: if true;
+    }
+
+    // Patient Appointment Bookings
+    match /appointments/{document} {
+      allow read, write: if true;
+    }
+
+    // Contact Inquiries & Leads
+    match /leads/{document} {
+      allow read, write: if true;
+    }
+
+    // Conversion Analytics Events & Traffic Stats
+    match /analytics_events/{document} {
+      allow read, write: if true;
+    }
+    match /page_views/{document} {
+      allow read, write: if true;
+    }
+
+    // Notification Audit Logs, Admin Activities & System Activity Logs
+    match /notification_logs/{document} {
+      allow read, write: if true;
+    }
+    match /audit_logs/{document} {
+      allow read, write: if true;
+    }
+    match /admin_activities/{document} {
+      allow read, write: if true;
+    }
+
+    // Admin & Staff Users
+    match /users/{document} {
+      allow read, write: if true;
+    }
+    match /admin_users/{document} {
+      allow read, write: if true;
+    }
+  }
+}

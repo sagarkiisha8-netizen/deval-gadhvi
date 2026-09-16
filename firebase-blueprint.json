@@ -1,0 +1,342 @@
+{
+  "project_name": "Newark Medical Associates CMS",
+  "collections": [
+    {
+      "name": "appointments",
+      "schema": {
+        "id": "string",
+        "patientName": "string",
+        "patientEmail": "string",
+        "patientPhone": "string",
+        "patientType": "string",
+        "email": "string",
+        "phone": "string",
+        "providerId": "string",
+        "providerName": "string",
+        "serviceId": "string",
+        "serviceName": "string",
+        "preferredDate": "string",
+        "preferredTime": "string",
+        "visitType": "string",
+        "reasonForVisit": "string",
+        "notes": "string",
+        "message": "string",
+        "bookingSource": "string",
+        "status": "string",
+        "internalNotes": "string",
+        "createdAt": "timestamp",
+        "updatedAt": "timestamp"
+      },
+      "rules": {
+        "read": "request.auth != null",
+        "create": "true",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "name": "doctor_profile",
+      "schema": {
+        "id": "string",
+        "name": "string",
+        "qualification": "string",
+        "designation": "string",
+        "speciality": "string",
+        "subSpeciality": "string",
+        "experienceYears": "number",
+        "clinicName": "string",
+        "biography": "string",
+        "introduction": "string",
+        "photoUrl": "string",
+        "expertise": "array",
+        "awards": "array",
+        "memberships": "array",
+        "certifications": "array",
+        "medicalRegistration": "map",
+        "consultationTimings": "string",
+        "consultationFee": "string",
+        "phone": "string",
+        "whatsapp": "string",
+        "email": "string",
+        "clinicAddress": "string",
+        "googleMapsUrl": "string",
+        "socialLinks": "map",
+        "updatedAt": "timestamp"
+      },
+      "rules": {
+        "read": "true",
+        "create": "true",
+        "update": "true",
+        "delete": "true"
+      }
+    },
+    {
+      "name": "providers",
+      "schema": {
+        "id": "string",
+        "name": "string",
+        "role": "string",
+        "title": "string",
+        "bio": "string",
+        "imageUrl": "string",
+        "specialties": "array",
+        "credentials": "array",
+        "acceptingNewPatients": "boolean",
+        "isActive": "boolean",
+        "workingDays": "array",
+        "startTime": "string",
+        "endTime": "string",
+        "slotDurationMinutes": "number",
+        "blockedDates": "array",
+        "createdAt": "timestamp",
+        "updatedAt": "timestamp"
+      },
+      "rules": {
+        "read": "true",
+        "create": "request.auth != null",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "name": "services",
+      "schema": {
+        "id": "string",
+        "name": "string",
+        "description": "string",
+        "shortDescription": "string",
+        "category": "string",
+        "duration": "string",
+        "preparationNotes": "string",
+        "isActive": "boolean",
+        "createdAt": "timestamp",
+        "updatedAt": "timestamp"
+      },
+      "rules": {
+        "read": "true",
+        "create": "request.auth != null",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "name": "leads",
+      "schema": {
+        "id": "string",
+        "name": "string",
+        "email": "string",
+        "phone": "string",
+        "service": "string",
+        "message": "string",
+        "source": "string",
+        "sourcePage": "string",
+        "status": "string",
+        "internalNotes": "string",
+        "createdAt": "timestamp",
+        "updatedAt": "timestamp"
+      },
+      "rules": {
+        "read": "request.auth != null",
+        "create": "true",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "name": "analytics_events",
+      "schema": {
+        "id": "string",
+        "eventName": "string",
+        "category": "string",
+        "label": "string",
+        "metadata": "map",
+        "timestamp": "timestamp"
+      },
+      "rules": {
+        "read": "request.auth != null",
+        "create": "true",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "name": "notification_logs",
+      "schema": {
+        "id": "string",
+        "type": "string",
+        "recipientEmail": "string",
+        "recipientPhone": "string",
+        "subject": "string",
+        "body": "string",
+        "status": "string",
+        "provider": "string",
+        "appointmentId": "string",
+        "createdAt": "timestamp"
+      },
+      "rules": {
+        "read": "request.auth != null",
+        "create": "true",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "name": "settings",
+      "schema": {
+        "id": "string",
+        "clinicName": "string",
+        "phone": "string",
+        "email": "string",
+        "address": "string",
+        "npiNumber": "string",
+        "ga4MeasurementId": "string",
+        "updatedAt": "timestamp"
+      },
+      "rules": {
+        "read": "true",
+        "create": "request.auth != null",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "name": "blogs",
+      "schema": {
+        "id": "string",
+        "title": "string",
+        "slug": "string",
+        "author": "string",
+        "authorTitle": "string",
+        "authorAvatar": "string",
+        "category": "string",
+        "categoryId": "string",
+        "tags": "array",
+        "excerpt": "string",
+        "featuredImage": "string",
+        "featuredImageAlt": "string",
+        "content": "string",
+        "status": "string",
+        "publishDate": "string",
+        "scheduledDate": "string",
+        "modifiedDate": "string",
+        "readTimeMinutes": "number",
+        "medicallyReviewedBy": "string",
+        "medicallyReviewedDate": "string",
+        "references": "array",
+        "seoTitle": "string",
+        "metaDescription": "string",
+        "canonicalUrl": "string",
+        "indexRobots": "boolean",
+        "schemaType": "string",
+        "ogImage": "string",
+        "createdAt": "timestamp",
+        "updatedAt": "timestamp"
+      },
+      "rules": {
+        "read": "true",
+        "create": "request.auth != null",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "name": "blog_categories",
+      "schema": {
+        "id": "string",
+        "name": "string",
+        "slug": "string",
+        "description": "string",
+        "seoTitle": "string",
+        "metaDescription": "string",
+        "displayOrder": "number",
+        "createdAt": "timestamp",
+        "updatedAt": "timestamp"
+      },
+      "rules": {
+        "read": "true",
+        "create": "request.auth != null",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "name": "blog_authors",
+      "schema": {
+        "id": "string",
+        "name": "string",
+        "profilePhoto": "string",
+        "designation": "string",
+        "qualification": "string",
+        "bio": "string",
+        "profileUrl": "string",
+        "authorType": "string",
+        "isActive": "boolean",
+        "createdAt": "timestamp",
+        "updatedAt": "timestamp"
+      },
+      "rules": {
+        "read": "true",
+        "create": "request.auth != null",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "name": "blog_tags",
+      "schema": {
+        "id": "string",
+        "name": "string",
+        "slug": "string",
+        "description": "string",
+        "createdAt": "timestamp",
+        "updatedAt": "timestamp"
+      },
+      "rules": {
+        "read": "true",
+        "create": "request.auth != null",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "name": "page_seo",
+      "schema": {
+        "id": "string",
+        "pageKey": "string",
+        "pageName": "string",
+        "path": "string",
+        "title": "string",
+        "metaDescription": "string",
+        "canonicalUrl": "string",
+        "indexRobots": "boolean",
+        "ogTitle": "string",
+        "ogDescription": "string",
+        "ogImage": "string",
+        "schemaJson": "string",
+        "updatedAt": "timestamp"
+      },
+      "rules": {
+        "read": "true",
+        "create": "request.auth != null",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    },
+    {
+      "name": "users",
+      "schema": {
+        "id": "string",
+        "email": "string",
+        "name": "string",
+        "role": "string",
+        "createdAt": "timestamp"
+      },
+      "rules": {
+        "read": "request.auth != null",
+        "create": "request.auth != null",
+        "update": "request.auth != null",
+        "delete": "request.auth != null"
+      }
+    }
+  ]
+}

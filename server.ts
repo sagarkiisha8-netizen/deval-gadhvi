@@ -1,0 +1,318 @@
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import { createServer as createViteServer } from 'vite';
+
+// Default base domain (no example.com)
+const BASE_URL = 'https://newarkmed.com';
+
+// Real published articles for static fallback & search engine crawlers (matching real clinic physicians)
+const PUBLISHED_ARTICLES = [
+  {
+    title: "Understanding High Blood Pressure: The Silent Risks and Daily Management",
+    slug: "understanding-high-blood-pressure-risks-management",
+    pubDate: "2026-03-15T08:00:00Z",
+    rfc822Date: "Sun, 15 Mar 2026 08:00:00 GMT",
+    excerpt: "High blood pressure often exhibits no warning symptoms until complications arise. Learn how routine monitoring, lifestyle adjustments, and targeted medical therapies protect your arterial health.",
+    author: "Dr. Prahlad Gadhvi, MD, FACP",
+    category: "Cardiovascular Health",
+    noIndex: false
+  },
+  {
+    title: "Why Your Annual Wellness Checkup Is the Cornerstone of Long-Term Health",
+    slug: "why-annual-wellness-checkup-cornerstone-health",
+    pubDate: "2026-03-10T08:00:00Z",
+    rfc822Date: "Tue, 10 Mar 2026 08:00:00 GMT",
+    excerpt: "An annual physical is far more than a routine signature—it is a proactive clinical assessment to detect hidden metabolic, cardiac, and organ changes years before symptoms arise.",
+    author: "Dr. Deval Gadhvi, MD",
+    category: "Preventive Care",
+    noIndex: false
+  },
+  {
+    title: "In-Office Ultrasound, EKG, and Rapid Blood Testing: What to Expect",
+    slug: "in-office-ultrasound-ekg-rapid-blood-testing-guide",
+    pubDate: "2026-03-05T08:00:00Z",
+    rfc822Date: "Thu, 05 Mar 2026 08:00:00 GMT",
+    excerpt: "Having advanced diagnostic equipment under one roof eliminates weeks of waiting between referral appointments. Here is how on-site imaging and lab testing expedite your diagnosis.",
+    author: "Dr. Sankalp Pathak, MD",
+    category: "Diagnostics & Testing",
+    noIndex: false
+  }
+];
+
+const STATIC_PAGES = [
+  { path: '/', priority: '1.0', changefreq: 'daily' },
+  { path: '/primary-care-newark-nj', priority: '0.95', changefreq: 'weekly' },
+  { path: '/internal-medicine-newark-nj', priority: '0.95', changefreq: 'weekly' },
+  { path: '/preventive-care-newark-nj', priority: '0.90', changefreq: 'weekly' },
+  { path: '/chronic-disease-management-newark-nj', priority: '0.90', changefreq: 'weekly' },
+  { path: '/annual-physical-newark-nj', priority: '0.90', changefreq: 'weekly' },
+  { path: '/diabetes-management-newark-nj', priority: '0.90', changefreq: 'weekly' },
+  { path: '/hypertension-treatment-newark-nj', priority: '0.90', changefreq: 'weekly' },
+  { path: '/in-office-diagnostics-newark-nj', priority: '0.90', changefreq: 'weekly' },
+  { path: '/onsite-laboratory-newark-nj', priority: '0.90', changefreq: 'weekly' },
+  { path: '/medical-weight-loss-newark-nj', priority: '0.85', changefreq: 'weekly' },
+  { path: '/immigration-physicals-newark-nj', priority: '0.85', changefreq: 'weekly' },
+  { path: '/locations/newark-nj', priority: '0.95', changefreq: 'weekly' },
+  { path: '/insurance-pricing', priority: '0.85', changefreq: 'monthly' },
+  { path: '/about', priority: '0.8', changefreq: 'monthly' },
+  { path: '/services', priority: '0.9', changefreq: 'weekly' },
+  { path: '/providers', priority: '0.85', changefreq: 'weekly' },
+  { path: '/providers/dr-prahlad-gadhvi', priority: '0.90', changefreq: 'weekly' },
+  { path: '/providers/dr-deval-gadhvi', priority: '0.90', changefreq: 'weekly' },
+  { path: '/providers/dr-sankalp-pathak', priority: '0.85', changefreq: 'weekly' },
+  { path: '/contact', priority: '0.85', changefreq: 'monthly' },
+  { path: '/appointments', priority: '0.9', changefreq: 'weekly' },
+  { path: '/blog', priority: '0.9', changefreq: 'daily' }
+];
+
+async function startServer() {
+  const app = express();
+  const PORT = 3000;
+
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+  // Static uploads directory
+  const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsDir));
+
+  const cmsCachePath = path.join(uploadsDir, 'cms-cache.json');
+  const allowedCmsCacheSections = new Set([
+    'siteMedia',
+    'providers',
+    'services',
+    'homeContent',
+    'aboutContent'
+  ]);
+
+  const readCmsCache = (): Record<string, any> => {
+    try {
+      if (!fs.existsSync(cmsCachePath)) return {};
+      const raw = fs.readFileSync(cmsCachePath, 'utf8');
+      return raw ? JSON.parse(raw) : {};
+    } catch (err) {
+      console.warn('CMS cache read failed:', err);
+      return {};
+    }
+  };
+
+  const writeCmsCache = (cache: Record<string, any>) => {
+    const tmpPath = `${cmsCachePath}.tmp`;
+    fs.writeFileSync(tmpPath, JSON.stringify(cache, null, 2));
+    fs.renameSync(tmpPath, cmsCachePath);
+  };
+
+  // 0. Image Upload & Migration API
+  app.post('/api/upload', (req, res) => {
+    try {
+      const { fileData, filename, folder = 'media' } = req.body;
+      if (!fileData) {
+        return res.status(400).json({ error: 'No fileData provided' });
+      }
+
+      let buffer: Buffer;
+      let ext = 'webp';
+      if (typeof fileData === 'string' && fileData.startsWith('data:')) {
+        const matches = fileData.match(/^data:([A-Za-z0-9-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          const mimeType = matches[1];
+          if (mimeType.includes('png')) ext = 'png';
+          else if (mimeType.includes('jpeg') || mimeType.includes('jpg')) ext = 'jpg';
+          else if (mimeType.includes('webp')) ext = 'webp';
+          else if (mimeType.includes('gif')) ext = 'gif';
+          buffer = Buffer.from(matches[2], 'base64');
+        } else {
+          const base64Data = fileData.split(',')[1] || fileData;
+          buffer = Buffer.from(base64Data, 'base64');
+        }
+      } else if (typeof fileData === 'string') {
+        buffer = Buffer.from(fileData, 'base64');
+      } else {
+        return res.status(400).json({ error: 'Invalid fileData format' });
+      }
+
+      const targetFolder = path.join(uploadsDir, folder);
+      if (!fs.existsSync(targetFolder)) {
+        fs.mkdirSync(targetFolder, { recursive: true });
+      }
+
+      const cleanFilename = filename 
+        ? filename.replace(/[^a-zA-Z0-9._-]/g, '_')
+        : `upload-${Date.now()}.${ext}`;
+      
+      const filePath = path.join(targetFolder, cleanFilename);
+      fs.writeFileSync(filePath, buffer);
+
+      const publicUrl = `/uploads/${folder}/${cleanFilename}`;
+      return res.json({
+        success: true,
+        url: publicUrl,
+        filename: cleanFilename,
+        size: buffer.length,
+        folder
+      });
+    } catch (err: any) {
+      console.error('Server upload error:', err);
+      return res.status(500).json({ error: err.message || 'Upload failed' });
+    }
+  });
+
+  app.get('/api/cms-cache', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
+    res.json(readCmsCache());
+  });
+
+  app.patch('/api/cms-cache/:section', (req, res) => {
+    try {
+      const { section } = req.params;
+      if (!allowedCmsCacheSections.has(section)) {
+        return res.status(400).json({ error: 'Unsupported CMS cache section' });
+      }
+
+      const cache = readCmsCache();
+      cache[section] = req.body?.data ?? req.body ?? {};
+      cache.updatedAt = new Date().toISOString();
+      writeCmsCache(cache);
+
+      res.json({ success: true, section, data: cache[section] });
+    } catch (err: any) {
+      console.error('CMS cache write error:', err);
+      res.status(500).json({ error: err.message || 'CMS cache write failed' });
+    }
+  });
+
+  // 1. Dynamic Standard XML Sitemap
+  app.get('/sitemap.xml', (req, res) => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+    // Static Pages
+    STATIC_PAGES.forEach(page => {
+      xml += `  <url>\n`;
+      xml += `    <loc>${BASE_URL}${page.path}</loc>\n`;
+      xml += `    <lastmod>${today}</lastmod>\n`;
+      xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+      xml += `    <priority>${page.priority}</priority>\n`;
+      xml += `  </url>\n`;
+    });
+
+    // Blog Articles (Only indexable published articles - drafts and noindex are strictly excluded)
+    PUBLISHED_ARTICLES.filter(art => !art.noIndex).forEach(art => {
+      xml += `  <url>\n`;
+      xml += `    <loc>${BASE_URL}/blog/${art.slug}</loc>\n`;
+      xml += `    <lastmod>${art.pubDate.split('T')[0]}</lastmod>\n`;
+      xml += `    <changefreq>weekly</changefreq>\n`;
+      xml += `    <priority>0.85</priority>\n`;
+      xml += `  </url>\n`;
+    });
+
+    xml += `</urlset>`;
+
+    res.header('Content-Type', 'application/xml; charset=utf-8');
+    res.send(xml);
+  });
+
+  // 2. Dynamic Google News XML Sitemap
+  const renderNewsSitemap = (req: express.Request, res: express.Response) => {
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
+    xml += `        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n`;
+
+    // Only indexable published articles (no drafts, no noIndex pages)
+    PUBLISHED_ARTICLES.filter(art => !art.noIndex).forEach(art => {
+      xml += `  <url>\n`;
+      xml += `    <loc>${BASE_URL}/blog/${art.slug}</loc>\n`;
+      xml += `    <news:news>\n`;
+      xml += `      <news:publication>\n`;
+      xml += `        <news:name>Newark Medical Associates Health Journal</news:name>\n`;
+      xml += `        <news:language>en</news:language>\n`;
+      xml += `      </news:publication>\n`;
+      xml += `      <news:publication_date>${art.pubDate}</news:publication_date>\n`;
+      xml += `      <news:title><![CDATA[${art.title}]]></news:title>\n`;
+      xml += `    </news:news>\n`;
+      xml += `  </url>\n`;
+    });
+
+    xml += `</urlset>`;
+
+    res.header('Content-Type', 'application/xml; charset=utf-8');
+    res.send(xml);
+  };
+
+  app.get('/news-sitemap.xml', renderNewsSitemap);
+  app.get('/sitemap-news.xml', renderNewsSitemap);
+
+  // 3. Dynamic RSS 2.0 Feed
+  app.get('/rss.xml', (req, res) => {
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n`;
+    xml += `  <channel>\n`;
+    xml += `    <title>Newark Medical Associates | Health Journal &amp; Clinical Perspectives</title>\n`;
+    xml += `    <link>${BASE_URL}/blog</link>\n`;
+    xml += `    <description>Evidence-based primary care, preventive cardiology, and diagnostic insights from board-certified physicians in Newark, New Jersey.</description>\n`;
+    xml += `    <language>en-us</language>\n`;
+    xml += `    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>\n`;
+    xml += `    <atom:link href="${BASE_URL}/rss.xml" rel="self" type="application/rss+xml" />\n`;
+
+    PUBLISHED_ARTICLES.filter(art => !art.noIndex).forEach(art => {
+      xml += `    <item>\n`;
+      xml += `      <title><![CDATA[${art.title}]]></title>\n`;
+      xml += `      <link>${BASE_URL}/blog/${art.slug}</link>\n`;
+      xml += `      <guid isPermaLink="true">${BASE_URL}/blog/${art.slug}</guid>\n`;
+      xml += `      <description><![CDATA[${art.excerpt}]]></description>\n`;
+      xml += `      <author>medicalnewark@gmail.com (${art.author})</author>\n`;
+      xml += `      <category>${art.category}</category>\n`;
+      xml += `      <pubDate>${art.rfc822Date}</pubDate>\n`;
+      xml += `    </item>\n`;
+    });
+
+    xml += `  </channel>\n`;
+    xml += `</rss>`;
+
+    res.header('Content-Type', 'application/rss+xml; charset=utf-8');
+    res.send(xml);
+  });
+
+  // 4. Dynamic Robots.txt
+  app.get('/robots.txt', (req, res) => {
+    const robots = `User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /preview
+Disallow: /preview/*
+
+Sitemap: ${BASE_URL}/sitemap.xml
+Sitemap: ${BASE_URL}/news-sitemap.xml
+`;
+    res.header('Content-Type', 'text/plain; charset=utf-8');
+    res.send(robots);
+  });
+
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+startServer();
