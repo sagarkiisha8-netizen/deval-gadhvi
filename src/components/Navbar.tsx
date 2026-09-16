@@ -50,11 +50,11 @@ export default function Navbar() {
     <header className="sticky top-0 left-0 right-0 z-50 w-full transition-shadow duration-300">
       {/* TOP UTILITY BAR: Midnight Navy */}
       <div className="bg-[#0B1F2A] text-[#D9D0C5] h-[30px] px-4 sm:px-6 lg:px-7 flex items-center justify-between text-[11.5px] sm:text-[12px] font-medium tracking-wide border-b border-[#0B1F2A]/60">
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#B39A68] animate-pulse" />
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#B39A68] animate-pulse shrink-0" />
           <span className="truncate">Newark, New Jersey</span>
-          <span className="hidden sm:inline text-[#B39A68]/60">•</span>
-          <span className="hidden sm:inline text-[#D9D0C5]/80">337 Bloomfield Ave</span>
+          <span className="hidden sm:inline text-[#B39A68]/60 shrink-0">•</span>
+          <span className="hidden sm:inline text-[#D9D0C5]/80 truncate">337 Bloomfield Ave</span>
         </div>
         <div>
           <a
