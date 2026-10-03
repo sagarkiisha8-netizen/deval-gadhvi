@@ -3,10 +3,11 @@ import {
   User, Award, Stethoscope, Clock, DollarSign, Phone, 
   Mail, MapPin, Globe, Save, Sparkles, CheckCircle2, 
   Upload, AlertCircle, Plus, X, ExternalLink, Share2,
-  FileCheck, Shield, RotateCcw
+  FileCheck, Shield, RotateCcw, Loader2
 } from 'lucide-react';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { getDb } from '../../lib/firebase';
+import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { getDb, storage, auth } from '../../lib/firebase';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { useCmsData } from '../../context/CmsContext';
 import { logAdminActivity } from '../utils/auditLogger';
@@ -82,68 +83,45 @@ export default function DoctorProfileManager() {
   const [newAward, setNewAward] = useState('');
   const [newMembership, setNewMembership] = useState('');
   const [newCert, setNewCert] = useState('');
-
+  
+  // Upload states
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   useEffect(() => {
     async function loadDoctorProfile() {
-      // Check for standalone preserved doctor photo
-      let preservedPhoto: string | null = null;
-      try {
-        preservedPhoto = localStorage.getItem('newark_doctor_photo');
-      } catch (e) {}
-
-      // 1. Instant load from local storage cache if available
-      try {
-        const local = localStorage.getItem('newark_doctor_profile');
-        if (local) {
-          const parsed = JSON.parse(local);
-          const activePhoto = preservedPhoto || parsed.photoUrl || DEFAULT_PROFILE.photoUrl;
-
-          if (parsed.experienceYears === 35 || parsed.clinicAddress?.includes('Chestnut') || !parsed.name?.includes('Gadhavi')) {
-            setProfile({ ...DEFAULT_PROFILE, photoUrl: activePhoto });
-            localStorage.setItem('newark_doctor_profile', JSON.stringify({ ...DEFAULT_PROFILE, photoUrl: activePhoto }));
-          } else {
-            setProfile({ ...DEFAULT_PROFILE, ...parsed, photoUrl: activePhoto });
-          }
-        } else {
-          setProfile({ ...DEFAULT_PROFILE, photoUrl: preservedPhoto || DEFAULT_PROFILE.photoUrl });
-        }
-      } catch (e) {
-        setProfile({ ...DEFAULT_PROFILE, photoUrl: preservedPhoto || DEFAULT_PROFILE.photoUrl });
-      }
-
-      // 2. Fetch latest from Firestore
       try {
         const db = getDb();
-        const [snap, providerSnap] = await Promise.all([
-          getDoc(doc(db, 'doctor_profile', 'main')),
-          getDoc(doc(db, 'providers', 'dr-prahlad-gadhvi'))
+        // Fetch from providers collection (single source of truth) and doctor_profile
+        const [providerSnap, profileSnap] = await Promise.all([
+          getDoc(doc(db, 'providers', 'dr-prahlad-gadhvi')),
+          getDoc(doc(db, 'doctor_profile', 'main'))
         ]);
         
-        const canonicalPhoto = providerSnap.exists() ? (providerSnap.data().imageUrl || providerSnap.data().photoUrl) : null;
+        // Get canonical photo from providers collection (THE single source of truth)
+        const canonicalPhoto = providerSnap.exists() 
+          ? (providerSnap.data().imageUrl || providerSnap.data().photoUrl) 
+          : null;
 
-        if (snap.exists()) {
-          const remoteData = snap.data() as DoctorProfile;
-          const activePhoto = canonicalPhoto || preservedPhoto || remoteData.photoUrl || DEFAULT_PROFILE.photoUrl;
-
+        if (profileSnap.exists()) {
+          const remoteData = profileSnap.data() as DoctorProfile;
+          // Use canonical provider photo first, then profile photo, then default
+          const activePhoto = canonicalPhoto || remoteData.photoUrl || DEFAULT_PROFILE.photoUrl;
+          
           if (remoteData.experienceYears === 35 || remoteData.clinicAddress?.includes('Chestnut') || !remoteData.name?.includes('Gadhavi')) {
-            const upgraded = { ...DEFAULT_PROFILE, photoUrl: activePhoto };
-            setProfile(upgraded);
-            localStorage.setItem('newark_doctor_profile', JSON.stringify(upgraded));
-            await setDoc(doc(db, 'doctor_profile', 'main'), upgraded, { merge: true });
+            setProfile({ ...DEFAULT_PROFILE, photoUrl: activePhoto });
           } else {
-            const merged = { ...DEFAULT_PROFILE, ...remoteData, photoUrl: activePhoto };
-            setProfile(merged);
-            try {
-              localStorage.setItem('newark_doctor_profile', JSON.stringify(merged));
-            } catch (e) {}
+            setProfile({ ...DEFAULT_PROFILE, ...remoteData, photoUrl: activePhoto });
           }
         } else {
-          // Initialize main document if empty
-          const initProfile = { ...DEFAULT_PROFILE, photoUrl: preservedPhoto || DEFAULT_PROFILE.photoUrl };
+          // Initialize from default with canonical photo if available
+          const initProfile = { ...DEFAULT_PROFILE, photoUrl: canonicalPhoto || DEFAULT_PROFILE.photoUrl };
+          setProfile(initProfile);
           await setDoc(doc(db, 'doctor_profile', 'main'), initProfile, { merge: true });
         }
       } catch (err) {
         console.warn('Doctor profile fallback load:', err);
+        setProfile(DEFAULT_PROFILE);
       } finally {
         setLoading(false);
       }
@@ -155,15 +133,6 @@ export default function DoctorProfileManager() {
     e.preventDefault();
     setSaving(true);
     setToastMessage(null);
-
-    // Save to local storage cache immediately
-    try {
-      localStorage.setItem('newark_doctor_profile', JSON.stringify(profile));
-      if (profile.photoUrl) {
-        localStorage.setItem('newark_doctor_photo', profile.photoUrl);
-      }
-      window.dispatchEvent(new Event('storage'));
-    } catch (e) {}
 
     try {
       const db = getDb();
@@ -226,54 +195,128 @@ export default function DoctorProfileManager() {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          // Auto-resize large files to max 800px & compress to ~70KB to guarantee instant Firestore sync & local rendering
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          const maxDim = 800;
+    if (!file) return;
 
-          if (width > height) {
-            if (width > maxDim) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            }
-          } else {
-            if (height > maxDim) {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
-          }
+    setIsUploading(true);
+    setUploadProgress(10);
+    setUploadError(null);
 
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            const compressed = canvas.toDataURL('image/jpeg', 0.88);
-            setProfile((prev) => ({ ...prev, photoUrl: compressed }));
-            try {
-              localStorage.setItem('newark_doctor_photo', compressed);
-              window.dispatchEvent(new Event('storage'));
-            } catch (err) {}
-          } else {
-            const raw = event.target?.result as string;
-            setProfile((prev) => ({ ...prev, photoUrl: raw }));
-            try {
-              localStorage.setItem('newark_doctor_photo', raw);
-              window.dispatchEvent(new Event('storage'));
-            } catch (err) {}
-          }
+    // Log Firebase auth state for debugging
+    const currentUser = auth.currentUser;
+    console.log('Firebase authenticated user:', currentUser?.uid || 'none (anonymous)');
+    console.log('Firebase project:', auth.app.options.projectId);
+    console.log('Uploading for provider: dr-prahlad-gadhvi');
+
+    // Compress image on a canvas (used for both Firebase Storage and fallback)
+    const compressImage = (file: File): Promise<{ blob: Blob; dataUrl: string }> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxDim = 800;
+            let width = img.width;
+            let height = img.height;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+            }
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            canvas.toBlob((blob) => {
+              if (blob) {
+                resolve({ blob, dataUrl });
+              } else {
+                resolve({ blob: new Blob(), dataUrl });
+              }
+            }, 'image/jpeg', 0.85);
+          };
+          img.onerror = () => reject(new Error('Failed to load image'));
+          img.src = ev.target?.result as string;
         };
-        img.src = event.target?.result as string;
-      };
-      reader.readAsDataURL(file);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+    };
+
+    try {
+      const { blob: compressedBlob, dataUrl: compressedDataUrl } = await compressImage(file);
+      setUploadProgress(30);
+
+      // Try Firebase Storage upload with the compressed blob
+      const fileId = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const storagePath = `doctor-images/dr-prahlad-gadhvi/${fileId}.jpg`;
+      console.log('Storage path:', storagePath);
+      
+      const storageRef = ref(storage, storagePath);
+      
+      try {
+        const uploadTask = uploadBytesResumable(storageRef, compressedBlob, {
+          contentType: 'image/jpeg'
+        });
+
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            const progress = 30 + Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 60);
+            setUploadProgress(progress);
+          },
+          (error) => {
+            // Firebase Storage failed (likely 403 — storage rules not deployed)
+            console.warn('Firebase Storage upload failed (using compressed base64 fallback):', error.code, error.message);
+            
+            // Use the compressed data URL directly — it's already small enough for Firestore
+            setProfile((prev) => ({ ...prev, photoUrl: compressedDataUrl }));
+            setUploadProgress(100);
+            setIsUploading(false);
+            setUploadError(null);
+            setToastMessage('Photo updated locally. Click "Save & Publish" to persist.');
+            setTimeout(() => setToastMessage(null), 4000);
+          },
+          async () => {
+            try {
+              const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+              console.log('Upload completed. Download URL:', downloadUrl);
+              
+              // Update profile with Firebase Storage URL
+              setProfile((prev) => ({ ...prev, photoUrl: downloadUrl }));
+              setUploadProgress(100);
+              setIsUploading(false);
+              setUploadError(null);
+              setToastMessage('Photo uploaded to Firebase Storage. Click "Save & Publish" to persist.');
+              setTimeout(() => setToastMessage(null), 4000);
+            } catch (urlErr) {
+              console.warn('getDownloadURL failed, using compressed base64:', urlErr);
+              setProfile((prev) => ({ ...prev, photoUrl: compressedDataUrl }));
+              setUploadProgress(100);
+              setIsUploading(false);
+            }
+          }
+        );
+      } catch (storageInitErr) {
+        console.warn('Storage init failed, using compressed base64:', storageInitErr);
+        setProfile((prev) => ({ ...prev, photoUrl: compressedDataUrl }));
+        setUploadProgress(100);
+        setIsUploading(false);
+      }
+    } catch (err: any) {
+      console.error('Image processing error:', err);
+      setUploadError('Failed to process image: ' + (err.message || 'Unknown error'));
+      setIsUploading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -364,9 +407,6 @@ export default function DoctorProfileManager() {
             type="button"
             onClick={() => {
               setProfile(DEFAULT_PROFILE);
-              try {
-                localStorage.setItem('newark_doctor_profile', JSON.stringify(DEFAULT_PROFILE));
-              } catch (e) {}
               setToastMessage('Filled official info for Dr. Prahlad Gadhavi (MBBS, MD) from clinic records! Click Save & Publish to save.');
               setTimeout(() => setToastMessage(null), 4000);
             }}
@@ -413,20 +453,51 @@ export default function DoctorProfileManager() {
                   alt={profile.name}
                   className="w-full h-full object-cover"
                 />
+                {isUploading && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 text-white animate-spin" />
+                  </div>
+                )}
               </div>
 
               <div>
-                <label className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl cursor-pointer transition-colors border border-slate-300">
-                  <Upload size={14} />
-                  <span>Change Doctor Photo</span>
+                <label className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-colors border ${
+                  isUploading 
+                    ? 'bg-slate-200 text-slate-400 border-slate-200 cursor-wait' 
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 cursor-pointer'
+                }`}>
+                  {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                  <span>{isUploading ? 'Uploading...' : 'Change Doctor Photo'}</span>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     onChange={handleFileUpload}
+                    disabled={isUploading}
                     className="hidden"
                   />
                 </label>
               </div>
+
+              {/* Upload Progress */}
+              {uploadProgress !== null && (
+                <div className="w-full max-w-[200px] mx-auto">
+                  <div className="w-full bg-slate-200 rounded-full h-1.5">
+                    <div 
+                      className="bg-primary-600 h-1.5 rounded-full transition-all duration-300" 
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">{uploadProgress}%</p>
+                </div>
+              )}
+
+              {/* Upload Error */}
+              {uploadError && (
+                <div className="p-2 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
+                  <AlertCircle size={12} className="inline mr-1" />
+                  {uploadError}
+                </div>
+              )}
 
               <div className="text-left">
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Photo Image URL</label>

@@ -8,7 +8,7 @@ import {
   query, orderBy 
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { getDb, storage } from '../../lib/firebase';
+import { getDb, storage, auth } from '../../lib/firebase';
 import { MediaItem } from '../../types';
 
 interface MediaPickerModalProps {
@@ -219,6 +219,10 @@ export default function MediaPickerModal({
     };
 
     try {
+      // Diagnostic logging for Firebase auth and storage debugging
+      console.log('Firebase authenticated user:', auth.currentUser?.uid || 'none (anonymous)');
+      console.log('Firebase storage bucket:', auth.app.options.storageBucket);
+      
       const fileId = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       const storageRef = ref(storage, `media/${fileId}`);
       
