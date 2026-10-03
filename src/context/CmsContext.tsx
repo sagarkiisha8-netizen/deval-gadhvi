@@ -18,7 +18,6 @@ import {
   DEFAULT_BLOG_CATEGORIES, DEFAULT_BLOG_AUTHORS, DEFAULT_BLOG_TAGS, DEFAULT_PAGE_SEO 
 } from '../data/defaultCmsData';
 import { DEFAULT_SITE_MEDIA } from '../data/defaultSiteMedia';
-import { getProviderImage, normalizeProviderKey } from '../utils/providerImages';
 
 interface CmsContextType {
   homeContent: HomePageContent;
@@ -81,90 +80,22 @@ interface CmsContextType {
   trackPageView: (pagePath: string) => void;
 }
 
-const sanitizePhoneNumbersInObject = <T,>(obj: T): T => {
-  if (!obj) return obj;
-  if (typeof obj === 'string') {
-    let updated: string = obj;
-    // Upgrade any old phone numbers like 973-483-xxxx or other legacy numbers to 973-412-9404
-    updated = updated.replace(/\b\(?973\)?[-.\s]?483[-.\s]?\d{4}\b/g, '(973) 412-9404');
-    updated = updated.replace(/\+1973483\d{4}\b/g, '+19734129404');
-    return updated as unknown as T;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(item => sanitizePhoneNumbersInObject(item)) as unknown as T;
-  }
-  if (typeof obj === 'object') {
-    const res: any = {};
-    for (const key of Object.keys(obj as any)) {
-      const val = (obj as any)[key];
-      if (key === 'phone' || key === 'directPhone' || key === 'topBarPhone' || key === 'phoneText' || key === 'whatsapp') {
-        if (typeof val === 'string' && val.trim() !== '' && !val.includes('000-0000')) {
-          if (key === 'whatsapp') {
-            res[key] = '+1 (973) 412-9404';
-          } else {
-            res[key] = '(973) 412-9404';
-          }
-          continue;
-        }
-      }
-      if (key === 'rawPhone') {
-        res[key] = '+19734129404';
-        continue;
-      }
-      res[key] = sanitizePhoneNumbersInObject(val);
-    }
-    return res as T;
-  }
-  return obj;
-};
-
 const getLocalItem = <T,>(key: string, fallback: T): T => {
   try {
     const item = localStorage.getItem(key);
-    if (item) {
-      const parsed = JSON.parse(item);
-      const sanitized = sanitizePhoneNumbersInObject(parsed);
-      // Persist back sanitized version so localStorage stays clean
-      localStorage.setItem(key, JSON.stringify(sanitized));
-      return sanitized;
-    }
+    if (item) return JSON.parse(item);
   } catch (e) {
     // Ignore localStorage parse errors
   }
-  return sanitizePhoneNumbersInObject(fallback);
+  return fallback;
 };
 
 const setLocalItem = (key: string, value: any) => {
   try {
-    const sanitized = sanitizePhoneNumbersInObject(value);
-    localStorage.setItem(key, JSON.stringify(sanitized));
+    localStorage.setItem(key, JSON.stringify(value));
   } catch (e) {
     // Ignore quota or private mode errors
   }
-};
-
-const sanitizeProvidersList = (raw: Provider[]): Provider[] => {
-  if (!Array.isArray(raw) || raw.length === 0) return DEFAULT_PROVIDERS;
-  return DEFAULT_PROVIDERS.map((def) => {
-    // Match strictly by canonical id or slug — NEVER by index or name substring
-    const defKey = normalizeProviderKey(def.id || def.slug);
-    const match = raw.find((p) => normalizeProviderKey(p.id || p.slug) === defKey);
-    if (!match) return def;
-
-    // Image priority: 1. Admin/Database saved image -> 2. Provider-specific default -> 3. Generic placeholder
-    const image = getProviderImage(match) || getProviderImage(def);
-    return {
-      ...def,
-      ...match,
-      id: def.id,
-      slug: def.slug,
-      name: match.name || def.name,
-      image,
-      imageUrl: image,
-      photoUrl: image,
-      phone: '(973) 412-9404'
-    };
-  });
 };
 
 const CmsContext = createContext<CmsContextType | undefined>(undefined);
@@ -179,36 +110,10 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
   const [footerContent, setFooterContent] = useState<FooterContent>(() => getLocalItem('newark_cms_footer', DEFAULT_FOOTER));
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => getLocalItem('newark_cms_settings', DEFAULT_SITE_SETTINGS));
   
-  // Providers: read from versioned localStorage key (written by Firestore snapshot).
-  // Falls back to DEFAULT_PROVIDERS on first load or after cache clear.
-  // Firestore onSnapshot will overwrite this within ~500ms of mount.
-  const [providers, setProviders] = useState<Provider[]>(() => {
-    const cached = getLocalItem<Provider[] | null>('newark_cms_providers_v3', null);
-    if (cached && Array.isArray(cached) && cached.length > 0) {
-      return sanitizeProvidersList(cached);
-    }
-    // Clear old stale key if it exists
-    try { localStorage.removeItem('newark_cms_providers'); } catch (_) {}
-    return DEFAULT_PROVIDERS;
-  });
-
+  const [providers, setProviders] = useState<Provider[]>(() => getLocalItem('newark_cms_providers', DEFAULT_PROVIDERS));
   const [services, setServices] = useState<ServiceItem[]>(DEFAULT_SERVICES);
   const [testimonials, setTestimonials] = useState<TestimonialItem[]>(DEFAULT_TESTIMONIALS);
-  const [blogs, setBlogs] = useState<BlogPost[]>(() => {
-    const localBlogs = getLocalItem<BlogPost[]>('newark_cms_blogs', []);
-    const merged = [...DEFAULT_BLOGS];
-    localBlogs.forEach((localBlog) => {
-      const existingIndex = merged.findIndex(
-        (blog) => blog.id === localBlog.id || blog.slug === localBlog.slug
-      );
-      if (existingIndex >= 0) {
-        merged[existingIndex] = { ...merged[existingIndex], ...localBlog };
-      } else {
-        merged.push(localBlog);
-      }
-    });
-    return merged;
-  });
+  const [blogs, setBlogs] = useState<BlogPost[]>(DEFAULT_BLOGS);
   const [blogCategories, setBlogCategories] = useState<BlogCategory[]>(DEFAULT_BLOG_CATEGORIES);
   const [blogAuthors, setBlogAuthors] = useState<BlogAuthor[]>(DEFAULT_BLOG_AUTHORS);
   const [blogTags, setBlogTags] = useState<BlogTag[]>(DEFAULT_BLOG_TAGS);
@@ -255,9 +160,6 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
       if (customEvent?.detail?.type === 'site_media' && customEvent.detail.data) {
         setSiteMedia(prev => ({ ...prev, ...customEvent.detail.data }));
       }
-      if (customEvent?.detail?.type === 'blogs' && customEvent.detail.data) {
-        setBlogs(customEvent.detail.data);
-      }
     };
 
     window.addEventListener('newark_cms_update', handleCmsUpdateEvent);
@@ -265,27 +167,9 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
       setHomeContent(getLocalItem('newark_cms_home', DEFAULT_HOME_PAGE));
       setAboutContent(getLocalItem('newark_cms_about', DEFAULT_ABOUT_PAGE));
       setSiteSettings(getLocalItem('newark_cms_settings', DEFAULT_SITE_SETTINGS));
-      // Read from versioned key; use sanitizeProvidersList for proper merge
-      const crossTabProviders = getLocalItem<Provider[] | null>('newark_cms_providers_v3', null);
-      if (crossTabProviders && Array.isArray(crossTabProviders) && crossTabProviders.length > 0) {
-        setProviders(sanitizeProvidersList(crossTabProviders));
-      }
+      setProviders(getLocalItem('newark_cms_providers', DEFAULT_PROVIDERS));
       const localMedia = getLocalItem<Record<string, SiteMediaItem>>('newark_cms_site_media', {});
       setSiteMedia({ ...DEFAULT_SITE_MEDIA, ...localMedia });
-      const localBlogs = getLocalItem<BlogPost[]>('newark_cms_blogs', []);
-      if (localBlogs.length > 0) {
-        setBlogs(prev => {
-          const merged = [...prev];
-          localBlogs.forEach((localBlog) => {
-            const index = merged.findIndex(
-              (blog) => blog.id === localBlog.id || blog.slug === localBlog.slug
-            );
-            if (index >= 0) merged[index] = { ...merged[index], ...localBlog };
-            else merged.push(localBlog);
-          });
-          return merged;
-        });
-      }
     });
 
     try {
@@ -316,12 +200,15 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
             },
             carePhilosophyImage: d.carePhilosophyImage || DEFAULT_HOME_PAGE.carePhilosophyImage,
             fullWidthImage: d.fullWidthImage || DEFAULT_HOME_PAGE.fullWidthImage,
+            whyChooseUs: { ...DEFAULT_HOME_PAGE.whyChooseUs, ...(d.whyChooseUs || {}) },
             process: { ...DEFAULT_HOME_PAGE.process, ...(d.process || {}) },
+            testimonials: { ...DEFAULT_HOME_PAGE.testimonials, ...(d.testimonials || {}) },
             faq: { 
               ...DEFAULT_HOME_PAGE.faq, 
               ...(d.faq || {}),
               items: d.faq?.items || DEFAULT_HOME_PAGE.faq.items 
             },
+            ctaBanner: { ...DEFAULT_HOME_PAGE.ctaBanner, ...(d.ctaBanner || {}) },
             sectionVisibility: { ...DEFAULT_HOME_PAGE.sectionVisibility, ...(d.sectionVisibility || {}) }
           };
           setHomeContent(newHome);
@@ -395,47 +282,14 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
             list.push({ id: d.id, ...(d.data() as any) });
           });
           list.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
-          // Merge Firestore data onto DEFAULT_PROVIDERS so no fields go missing,
-          // but let Firestore imageUrl always win over the static default.
-          const merged = DEFAULT_PROVIDERS.map((def) => {
-            const defKey = normalizeProviderKey(def.id || def.slug);
-            const live = list.find((p) => normalizeProviderKey(p.id || p.slug) === defKey);
-            if (!live) return def;
-            const image = getProviderImage(live) || getProviderImage(def);
-            return {
-              ...def,
-              ...live,
-              id: def.id,
-              slug: def.slug,
-              image,
-              imageUrl: image,
-              photoUrl: image,
-              phone: '(973) 412-9404',
-            };
-          });
-          // Include any extra Firestore providers not in DEFAULT_PROVIDERS
-          list.forEach((live) => {
-            const liveKey = normalizeProviderKey(live.id || live.slug);
-            if (!merged.find((m) => normalizeProviderKey(m.id || m.slug) === liveKey)) {
-              const image = getProviderImage(live);
-              merged.push({
-                ...live,
-                image,
-                imageUrl: image,
-                photoUrl: image
-              });
-            }
-          });
-          setProviders(merged);
-          // Persist to localStorage with version stamp so next page load uses this data
-          setLocalItem('newark_cms_providers_v3', merged);
-          // Also clear the old unstamped key so stale data doesn't accumulate
-          try { localStorage.removeItem('newark_cms_providers'); } catch (_) {}
-
-
+          setProviders(list);
         }
       }, () => {});
 
+      // Live Doctor Profile Listener - DEPRECATED
+      // We no longer overwrite the providers array with doctor_profile photoUrl.
+      // The providers collection is now the single source of truth for provider images.
+      unsubscribeDoctorProfile = () => {};
 
       // Services Collection
       unsubscribeServices = onSnapshot(collection(db, 'services'), (snapshot) => {
@@ -464,41 +318,14 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
       // Blogs Collection
       unsubscribeBlogs = onSnapshot(collection(db, 'blogs'), (snapshot) => {
         if (!snapshot.empty) {
-          const firestoreList: BlogPost[] = [];
+          const list: BlogPost[] = [];
           snapshot.forEach((d) => {
-            firestoreList.push({ id: d.id, ...(d.data() as any) });
+            list.push({ id: d.id, ...(d.data() as any) });
           });
-          // Merge: default blogs first, then override/add with any Firestore blogs
-          // This ensures seeded default blogs always appear even when Firestore only has a subset
-          const localBlogs = getLocalItem<BlogPost[]>('newark_cms_blogs', []);
-          const merged = [...DEFAULT_BLOGS];
-          [...firestoreList, ...localBlogs].forEach((fb) => {
-            const existingIdx = merged.findIndex((b) => b.id === fb.id || b.slug === fb.slug);
-            if (existingIdx >= 0) {
-              merged[existingIdx] = { ...merged[existingIdx], ...fb };
-            } else {
-              merged.push(fb);
-            }
-          });
-          merged.sort((a, b) => new Date(b.publishDate || (b as any).createdAt || 0).getTime() - new Date(a.publishDate || (a as any).createdAt || 0).getTime());
-          setBlogs(merged);
+          list.sort((a, b) => new Date(b.publishDate || b.createdAt || 0).getTime() - new Date(a.publishDate || a.createdAt || 0).getTime());
+          setBlogs(list);
         }
-      }, () => {
-        const localBlogs = getLocalItem<BlogPost[]>('newark_cms_blogs', []);
-        if (localBlogs.length > 0) {
-          setBlogs(prev => {
-            const merged = [...prev];
-            localBlogs.forEach((localBlog) => {
-              const index = merged.findIndex(
-                (blog) => blog.id === localBlog.id || blog.slug === localBlog.slug
-              );
-              if (index >= 0) merged[index] = { ...merged[index], ...localBlog };
-              else merged.push(localBlog);
-            });
-            return merged;
-          });
-        }
-      });
+      }, () => {});
 
       // Blog Categories Collection
       unsubscribeCategories = onSnapshot(collection(db, 'blog_categories'), (snapshot) => {
@@ -765,13 +592,6 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
     };
 
     setBlogs((prev) => [newBlog, ...prev.filter((b) => b.id !== id)]);
-    setLocalItem('newark_cms_blogs', [
-      newBlog,
-      ...getLocalItem<BlogPost[]>('newark_cms_blogs', []).filter((b) => b.id !== id)
-    ]);
-    window.dispatchEvent(new CustomEvent('newark_cms_update', {
-      detail: { type: 'blogs', data: [newBlog, ...blogs.filter((b) => b.id !== id)] }
-    }));
     try {
       await setDoc(doc(db, 'blogs', id), newBlog);
     } catch (e) {
@@ -788,19 +608,6 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
       updatedAt: serverTimestamp()
     };
     setBlogs((prev) => prev.map((b) => (b.id === id ? { ...b, ...updated } : b)));
-    const localBlogs = getLocalItem<BlogPost[]>('newark_cms_blogs', []);
-    const currentBlog = blogs.find((b) => b.id === id);
-    const localUpdatedBlog = { ...(currentBlog || { id }), ...updated } as BlogPost;
-    setLocalItem('newark_cms_blogs', [
-      localUpdatedBlog,
-      ...localBlogs.filter((b) => b.id !== id)
-    ]);
-    window.dispatchEvent(new CustomEvent('newark_cms_update', {
-      detail: {
-        type: 'blogs',
-        data: blogs.map((blog) => blog.id === id ? { ...blog, ...updated } : blog)
-      }
-    }));
     try {
       await setDoc(doc(db, 'blogs', id), updated, { merge: true });
     } catch (e) {
@@ -811,13 +618,6 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
   const deleteBlog = async (id: string) => {
     const db = getDb();
     setBlogs((prev) => prev.filter((b) => b.id !== id));
-    setLocalItem(
-      'newark_cms_blogs',
-      getLocalItem<BlogPost[]>('newark_cms_blogs', []).filter((b) => b.id !== id)
-    );
-    window.dispatchEvent(new CustomEvent('newark_cms_update', {
-      detail: { type: 'blogs', data: blogs.filter((b) => b.id !== id) }
-    }));
     try {
       await deleteDoc(doc(db, 'blogs', id));
     } catch (e) {
@@ -1095,33 +895,27 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateProvider = async (id: string, providerData: Partial<Provider>) => {
-    const rawImg = providerData.image || providerData.imageUrl || providerData.photoUrl;
-    const normalizedData: Partial<Provider> = {
-      ...providerData,
-      ...(rawImg ? { image: rawImg, imageUrl: rawImg, photoUrl: rawImg } : {}),
-      updatedAt: serverTimestamp()
-    };
-    const targetKey = normalizeProviderKey(id);
-
+    const updated = { ...providerData, updatedAt: serverTimestamp() };
     setProviders(prev => {
-      const newProviders = prev.map(p => (
-        normalizeProviderKey(p.id || p.slug) === targetKey 
-          ? { ...p, ...normalizedData } 
-          : p
-      ));
-      // Write to versioned key so boot-time reader picks it up
-      setLocalItem('newark_cms_providers_v3', newProviders);
+      const newProviders = prev.map(p => (p.id === id || p.slug === id ? { ...p, ...updated } : p));
+      setLocalItem('newark_cms_providers', newProviders);
       return newProviders;
     });
-
     try {
       const db = getDb();
-      await setDoc(doc(db, 'providers', id), normalizedData, { merge: true });
+      await setDoc(doc(db, 'providers', id), updated, { merge: true });
+      if (id.includes('prahlad') || providerData.name?.toLowerCase().includes('prahlad')) {
+        if (providerData.imageUrl || providerData.photoUrl) {
+          await setDoc(doc(db, 'doctor_profile', 'main'), {
+            photoUrl: providerData.imageUrl || providerData.photoUrl,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        }
+      }
     } catch (e) {
       console.warn('Provider update error/fallback:', e);
     }
   };
-
 
   const updateSiteMediaItem = async (id: string, updates: Partial<SiteMediaItem>) => {
     const existing = siteMedia[id] || DEFAULT_SITE_MEDIA[id] || {
@@ -1142,70 +936,61 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
       updatedAt: serverTimestamp()
     };
 
-    try {
-      const db = getDb();
-      await setDoc(doc(db, 'site_media', id), updated, { merge: true });
-    } catch (e) {
-      console.warn('Site media Firestore write failed; using local CMS cache:', e);
-    }
-
-    // Keep legacy page/provider records in sync when Firestore is available.
-    // Local state is still committed below so localhost remains usable when
-    // the connected Firebase project has restrictive rules.
-    if (updates.url) {
-      try {
-        const db = getDb();
-        if (id === 'home-hero-main') {
-          await setDoc(doc(db, 'pages', 'home'), { 
-            hero: { heroImage: updates.url, heroImageUrl: updates.url, alt: updates.altText || '' } 
-          }, { merge: true });
-        } else if (id === 'home-about-preview') {
-          await setDoc(doc(db, 'pages', 'home'), { 
-            aboutPreview: { imageUrl: updates.url } 
-          }, { merge: true });
-        } else if (id === 'home-philosophy-portrait') {
-          await setDoc(doc(db, 'pages', 'home'), { 
-            carePhilosophyImage: updates.url 
-          }, { merge: true });
-        } else if (id === 'home-fullwidth-banner') {
-          await setDoc(doc(db, 'pages', 'home'), { 
-            fullWidthImage: updates.url 
-          }, { merge: true });
-        } else if (id === 'about-facility-main') {
-          await setDoc(doc(db, 'pages', 'about'), { 
-            facilityImageUrl: updates.url,
-            heroImage: updates.url 
-          }, { merge: true });
-        } else if (id === 'contact-clinic-exterior') {
-          await setDoc(doc(db, 'pages', 'contact'), {
-            heroImage: updates.url
-          }, { merge: true });
-        } else if (id === 'providers-dr-prahlad') {
-          await updateProvider('dr-prahlad-gadhvi', { image: updates.url, imageUrl: updates.url, photoUrl: updates.url });
-        } else if (id === 'providers-dr-deval') {
-          await updateProvider('dr-deval-gadhvi', { image: updates.url, imageUrl: updates.url, photoUrl: updates.url });
-        } else if (id === 'providers-dr-sankalp') {
-          await updateProvider('dr-sankalp-pathak', { image: updates.url, imageUrl: updates.url, photoUrl: updates.url });
-        } else if (id.startsWith('services-')) {
-          const slug = id.replace('services-', '');
-          const matched = services.find(s => s.id === slug || s.slug === slug);
-          if (matched) {
-            await updateService(matched.id, { imageUrl: updates.url });
-          }
-        }
-      } catch (e) {
-        console.warn('Legacy site media sync failed; keeping the centralized local value:', e);
-      }
-    }
-
     const newMap = { ...siteMedia, [id]: updated };
     setSiteMedia(newMap);
     setLocalItem('newark_cms_site_media', newMap);
 
-    // Cross-tab notification after the database write succeeds.
+    // Cross-tab notification
     window.dispatchEvent(new CustomEvent('newark_cms_update', { 
       detail: { type: 'site_media', data: { [id]: updated } } 
     }));
+
+    try {
+      const db = getDb();
+      await setDoc(doc(db, 'site_media', id), updated, { merge: true });
+
+      // Bidirectional sync with legacy schemas where applicable
+      if (id === 'home-hero-main' && updates.url) {
+        await setDoc(doc(db, 'pages', 'home'), { 
+          hero: { heroImage: updates.url, heroImageUrl: updates.url, alt: updates.altText || '' } 
+        }, { merge: true });
+      } else if (id === 'home-about-preview' && updates.url) {
+        await setDoc(doc(db, 'pages', 'home'), { 
+          aboutPreview: { imageUrl: updates.url } 
+        }, { merge: true });
+      } else if (id === 'home-philosophy-portrait' && updates.url) {
+        await setDoc(doc(db, 'pages', 'home'), { 
+          carePhilosophyImage: updates.url 
+        }, { merge: true });
+      } else if (id === 'home-fullwidth-banner' && updates.url) {
+        await setDoc(doc(db, 'pages', 'home'), { 
+          fullWidthImage: updates.url 
+        }, { merge: true });
+      } else if (id === 'about-facility-main' && updates.url) {
+        await setDoc(doc(db, 'pages', 'about'), { 
+          facilityImageUrl: updates.url,
+          heroImage: updates.url 
+        }, { merge: true });
+      } else if (id === 'contact-clinic-exterior' && updates.url) {
+        await setDoc(doc(db, 'pages', 'contact'), {
+          heroImage: updates.url
+        }, { merge: true });
+      } else if (id === 'providers-dr-prahlad' && updates.url) {
+        await updateProvider('dr-prahlad-gadhvi', { imageUrl: updates.url, photoUrl: updates.url });
+      } else if (id === 'providers-dr-deval' && updates.url) {
+        await updateProvider('dr-deval-gadhvi', { imageUrl: updates.url, photoUrl: updates.url });
+      } else if (id === 'providers-dr-sankalp' && updates.url) {
+        await updateProvider('dr-sankalp-pathak', { imageUrl: updates.url, photoUrl: updates.url });
+      } else if (id.startsWith('services-') && updates.url) {
+        const slug = id.replace('services-', '');
+        const matched = services.find(s => s.id === slug || s.slug === slug);
+        if (matched) {
+          await updateService(matched.id, { imageUrl: updates.url });
+        }
+      }
+    } catch (e) {
+      console.warn('Site media Firestore write fallback active:', e);
+    }
   };
 
   const resetSiteMediaItem = async (id: string) => {
@@ -1340,3 +1125,4 @@ export function useCmsData() {
   }
   return context;
 }
+

@@ -4,17 +4,13 @@ import {
   Check, ExternalLink, Filter, Plus, FileText, AlertCircle, 
   Loader2, RefreshCw 
 } from 'lucide-react';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { 
+  collection, onSnapshot, addDoc, deleteDoc, doc, 
+  serverTimestamp, query, orderBy 
+} from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { getDb, storage } from '../../lib/firebase';
 import { MediaItem } from '../../types';
-import { uploadMediaFile } from '../../utils/mediaStorage';
-import {
-  getLocalMediaItems,
-  mergeMediaItems,
-  removeLocalMediaItem,
-  saveLocalMediaItem
-} from '../../utils/localMediaLibrary';
 
 export default function MediaLibrary() {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
@@ -43,10 +39,10 @@ export default function MediaLibrary() {
     {
       id: 'stock-2',
       name: 'Dr. Prahlad Gadhvi Portrait',
-      url: 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
+      url: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
       size: 320000,
-      type: 'image/png',
-      dimensions: '898x1194',
+      type: 'image/jpeg',
+      dimensions: '800x800',
       altText: 'Dr. Prahlad Gadhvi, MD',
       createdAt: new Date().toISOString()
     },
@@ -96,48 +92,31 @@ export default function MediaLibrary() {
     setLoading(true);
     try {
       const db = getDb();
-      // Do not require every legacy asset to have createdAt.
-      const unsubscribe = onSnapshot(collection(db, 'media_library'), (snapshot) => {
+      const q = query(collection(db, 'media_library'), orderBy('createdAt', 'desc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
         const items: MediaItem[] = [];
         snapshot.forEach((docSnap) => {
           items.push({ id: docSnap.id, ...(docSnap.data() as any) });
         });
-        setMediaItems(mergeMediaItems(items, getLocalMediaItems(), DEFAULT_STOCK_IMAGES));
+        setMediaItems(items.length > 0 ? items : DEFAULT_STOCK_IMAGES);
         if (items.length > 0 && !selectedItem) {
           setSelectedItem(items[0]);
         } else if (!selectedItem) {
-          setSelectedItem(mergeMediaItems(getLocalMediaItems(), DEFAULT_STOCK_IMAGES)[0]);
+          setSelectedItem(DEFAULT_STOCK_IMAGES[0]);
         }
         setLoading(false);
       }, (err) => {
         console.warn('Firestore media subscription error:', err);
-        const fallbackItems = mergeMediaItems(getLocalMediaItems(), DEFAULT_STOCK_IMAGES);
-        setMediaItems(fallbackItems);
-        setSelectedItem(fallbackItems[0]);
+        setMediaItems(DEFAULT_STOCK_IMAGES);
+        setSelectedItem(DEFAULT_STOCK_IMAGES[0]);
         setLoading(false);
       });
       return () => unsubscribe();
     } catch {
-      const fallbackItems = mergeMediaItems(getLocalMediaItems(), DEFAULT_STOCK_IMAGES);
-      setMediaItems(fallbackItems);
-      setSelectedItem(fallbackItems[0]);
+      setMediaItems(DEFAULT_STOCK_IMAGES);
+      setSelectedItem(DEFAULT_STOCK_IMAGES[0]);
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    const handleMediaUpdate = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.type === 'media_library') {
-        setMediaItems(prev => mergeMediaItems(prev, getLocalMediaItems(), DEFAULT_STOCK_IMAGES));
-      }
-    };
-    window.addEventListener('newark_cms_update', handleMediaUpdate);
-    window.addEventListener('storage', handleMediaUpdate);
-    return () => {
-      window.removeEventListener('newark_cms_update', handleMediaUpdate);
-      window.removeEventListener('storage', handleMediaUpdate);
-    };
   }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,48 +124,137 @@ export default function MediaLibrary() {
     if (!file) return;
 
     setIsUploading(true);
-    setUploadProgress(30);
+    setUploadProgress(15);
     setUploadError(null);
 
-    try {
-      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const { url: permanentUrl, path: storagePath } = await uploadMediaFile(file, `media/${Date.now()}-${cleanFileName}`);
-      setUploadProgress(100);
-
-      const newItem: MediaItem = {
-        id: `local-media-${Date.now()}`,
-        name: file.name,
-        url: permanentUrl,
-        path: storagePath,
-        size: file.size,
-        type: file.type,
-        altText: file.name.split('.')[0],
-        createdAt: new Date().toISOString()
+    const fallbackToCompressedBase64 = () => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        const img = new Image();
+        img.onload = async () => {
+          try {
+            const canvas = document.createElement('canvas');
+            const maxDim = 800;
+            let width = img.width;
+            let height = img.height;
+            
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+            }
+            
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            
+            const db = getDb();
+            const docRef = await addDoc(collection(db, 'media_library'), {
+              name: file.name,
+              url: compressedDataUrl,
+              size: Math.round(compressedDataUrl.length * 0.75),
+              type: 'image/jpeg',
+              altText: file.name.split('.')[0],
+              createdAt: serverTimestamp()
+            });
+            const newItem: MediaItem = {
+              id: docRef.id,
+              name: file.name,
+              url: compressedDataUrl,
+              size: Math.round(compressedDataUrl.length * 0.75),
+              type: 'image/jpeg',
+              altText: file.name.split('.')[0],
+              createdAt: new Date().toISOString()
+            };
+            setSelectedItem(newItem);
+            setIsUploading(false);
+            setUploadProgress(null);
+          } catch (fallbackErr: any) {
+            setUploadError('Failed to process image: ' + (fallbackErr.message || 'Unknown error'));
+            setIsUploading(false);
+          }
+        };
+        img.onerror = () => {
+          setUploadError('Failed to read image file');
+          setIsUploading(false);
+        };
+        img.src = dataUrl;
       };
+      reader.onerror = () => {
+        setUploadError('Failed to read file');
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    };
+
+    try {
+      const fileId = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const storageRef = ref(storage, `media/${fileId}`);
+      
+      let uploadTask;
       try {
-        const db = getDb();
-        const docRef = await addDoc(collection(db, 'media_library'), {
-          name: file.name,
-          url: permanentUrl,
-          path: newItem.path,
-          size: file.size,
-          type: file.type,
-          altText: file.name.split('.')[0],
-          createdAt: serverTimestamp()
-        });
-        newItem.id = docRef.id;
-      } catch (firestoreErr) {
-        console.warn('Media library Firestore save failed; using local media cache:', firestoreErr);
+        uploadTask = uploadBytesResumable(storageRef, file);
+      } catch (storageErr) {
+        console.warn('Storage init failed, using fallback:', storageErr);
+        fallbackToCompressedBase64();
+        return;
       }
-      saveLocalMediaItem(newItem);
-      setMediaItems(prev => mergeMediaItems([newItem], prev, DEFAULT_STOCK_IMAGES));
-      setSelectedItem(newItem);
+
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          setUploadProgress(progress);
+        },
+        (err) => {
+          console.warn('Storage upload fallback to base64 DataURL:', err);
+          fallbackToCompressedBase64();
+        },
+        async () => {
+          try {
+            const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+            const db = getDb();
+            const docRef = await addDoc(collection(db, 'media_library'), {
+              name: file.name,
+              url: downloadUrl,
+              path: `media/${fileId}`,
+              size: file.size,
+              type: file.type,
+              altText: file.name.split('.')[0],
+              createdAt: serverTimestamp()
+            });
+            const newItem: MediaItem = {
+              id: docRef.id,
+              name: file.name,
+              url: downloadUrl,
+              path: `media/${fileId}`,
+              size: file.size,
+              type: file.type,
+              altText: file.name.split('.')[0],
+              createdAt: new Date().toISOString()
+            };
+            setSelectedItem(newItem);
+            setIsUploading(false);
+            setUploadProgress(null);
+          } catch (dbErr) {
+            console.warn('Failed to save to database or get download URL, using fallback:', dbErr);
+            fallbackToCompressedBase64();
+          }
+        }
+      );
     } catch (err: any) {
-      console.error('Media upload failed:', err);
-      setUploadError(err.message || 'Failed to upload media file');
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(null);
+      console.error('File upload exception:', err);
+      fallbackToCompressedBase64();
     }
   };
 
@@ -200,17 +268,12 @@ export default function MediaLibrary() {
     try {
       const db = getDb();
       if (!item.id.startsWith('stock-')) {
-        try {
-          await deleteDoc(doc(db, 'media_library', item.id));
-        } catch (firestoreErr) {
-          console.warn('Media library Firestore delete failed; removing local copy:', firestoreErr);
-        }
+        await deleteDoc(doc(db, 'media_library', item.id));
         if (item.path) {
           try {
             await deleteObject(ref(storage, item.path));
           } catch {}
         }
-        removeLocalMediaItem(item.id);
       }
       setMediaItems(prev => prev.filter(i => i.id !== item.id));
       if (selectedItem?.id === item.id) {

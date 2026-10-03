@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { getDb } from '../lib/firebase';
 import { useCmsData } from '../context/CmsContext';
-import { DEFAULT_PROVIDERS } from '../data/defaultCmsData';
-import { getProviderImage, getProviderImageSrc, normalizeProviderKey } from '../utils/providerImages';
 
 export interface ProviderItem {
   id: string;
@@ -16,62 +16,88 @@ export interface ProviderItem {
   shortBio: string;
   image: string;
   languages: string[];
-  updatedAt?: any;
 }
 
-export const providersList: ProviderItem[] = DEFAULT_PROVIDERS.map((p) => ({
-  id: p.id,
-  slug: p.slug,
-  name: p.name,
-  credentials: p.credentials,
-  designation: p.title,
-  specialty: p.specialty,
-  shortBio: p.bio?.slice(0, 140) || '',
-  image: getProviderImage(p),
-  languages: p.languages || ['English', 'Spanish'],
-  updatedAt: p.updatedAt
-}));
+export const providersList: ProviderItem[] = [
+  {
+    id: 'dr-prahlad-gadhvi',
+    slug: 'dr-prahlad-gadhvi',
+    name: 'Dr. Prahlad Gadhvi',
+    credentials: 'MD, Internal Medicine',
+    designation: 'Primary Care Physician',
+    specialty: 'Adult Primary Care & Diagnostic Medicine',
+    shortBio: 'Serving Newark for over two decades with dedicated preventive medicine, chronic disease management, and thorough clinical consultations.',
+    image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=85&w=1000',
+    languages: ['English', 'Spanish', 'Hindi', 'Gujarati']
+  },
+  {
+    id: 'dr-deval-gadhvi',
+    slug: 'dr-deval-gadhvi',
+    name: 'Dr. Deval Gadhvi',
+    credentials: 'MD, ABIM Board-Certified',
+    designation: 'Medical Director',
+    specialty: 'Internal Medicine & Women\'s Health',
+    shortBio: 'Compassionate clinical director focused on early preventive detection, metabolic wellness, and long-term continuity of care.',
+    image: 'https://images.unsplash.com/photo-1594824813627-2c9ffea824f9?auto=format&fit=crop&q=85&w=1000',
+    languages: ['English', 'Spanish', 'Hindi', 'Gujarati']
+  },
+  {
+    id: 'dr-sankalp-pathak',
+    slug: 'dr-sankalp-pathak',
+    name: 'Dr. Sankalp Pathak',
+    credentials: 'MD, FACC Board-Certified',
+    designation: 'Cardiology Consultant',
+    specialty: 'Cardiovascular Diagnostics & Prevention',
+    shortBio: 'Providing specialized cardiopulmonary risk assessments, in-office echocardiograms, and continuous heart health evaluations.',
+    image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=85&w=1000',
+    languages: ['English', 'Spanish', 'Hindi']
+  }
+];
 
 export default function Providers() {
-  const { providers: dynamicProviders, siteMedia } = useCmsData();
+  const { providers: dynamicProviders, getMediaUrl, getSiteMedia } = useCmsData();
 
-  const displayList = providersList.map((staticDoc) => {
-    // Match CMS provider strictly by canonical id or slug — NEVER by index or name substring
-    const staticKey = normalizeProviderKey(staticDoc.id || staticDoc.slug);
-    const dp = dynamicProviders?.find(
-      (p) => normalizeProviderKey(p.id || p.slug) === staticKey
-    );
-
-    // Image priority: 1. Admin Panel saved image -> 2. Provider-specific default -> 3. Generic placeholder
-    const mediaId = `providers-${staticKey === 'prahlad-gadhavi' ? 'dr-prahlad' : staticKey === 'deval-gadhvi' ? 'dr-deval' : 'dr-sankalp'}`;
-    const centralizedImage = siteMedia?.[mediaId]?.url;
-    const resolvedImage = centralizedImage || getProviderImage(dp || staticDoc);
-    const updatedAt = (dp as any)?.updatedAt || (staticDoc as any)?.updatedAt;
-
-    const item = {
-      id: dp?.id || staticDoc.id,
-      slug: dp?.slug || staticDoc.slug,
-      name: dp?.name || staticDoc.name,
-      credentials: dp?.credentials || staticDoc.credentials,
-      designation: dp?.title || (dp as any)?.designation || staticDoc.designation,
-      specialty: dp?.specialty || staticDoc.specialty,
-      shortBio: dp?.shortBio || dp?.bio?.slice(0, 140) || staticDoc.shortBio,
-      image: resolvedImage,
-      updatedAt,
-      languages: dp?.languages || staticDoc.languages
-    };
-
-    if (process.env.NODE_ENV !== 'production') {
-      console.log({
-        provider: item.name,
-        id: item.id,
-        slug: item.slug,
-        image: item.image
-      });
+  const resolveProviderMedia = (id: string, fallbackUrl: string) => {
+    const key = id.replace('dr-', '');
+    const mediaItem = getSiteMedia('providers', 'doctors', id) ||
+      getSiteMedia('providers', 'doctors', `dr-${key}`) ||
+      getSiteMedia('providers', id, 'portrait') || 
+      getSiteMedia('providers', `dr-${key}`, 'portrait') ||
+      getSiteMedia('providers', key, 'portrait');
+    
+    let imageUrl = mediaItem?.url;
+    if (!imageUrl) {
+      imageUrl = fallbackUrl;
     }
+    return { imageUrl, mediaItem };
+  };
 
-    return item;
-  });
+  const displayList = (dynamicProviders && dynamicProviders.length > 0)
+    ? dynamicProviders.map((dp) => {
+        const staticFallback = providersList.find(p => p.id === dp.id)?.image || '';
+        const fallback = dp.imageUrl || staticFallback;
+        const resolved = resolveProviderMedia(dp.id, fallback);
+        return {
+          id: dp.id,
+          slug: dp.slug || dp.id,
+          name: dp.name,
+          credentials: dp.credentials || '',
+          designation: dp.designation || dp.title || 'Physician',
+          specialty: dp.specialty,
+          shortBio: dp.shortBio || dp.bio?.slice(0, 140) || '',
+          image: resolved.imageUrl,
+          mediaItem: resolved.mediaItem,
+          languages: dp.languages || ['English', 'Spanish']
+        };
+      })
+    : providersList.map(p => {
+        const resolved = resolveProviderMedia(p.id, p.image);
+        return {
+          ...p,
+          image: resolved.imageUrl,
+          mediaItem: resolved.mediaItem
+        };
+      });
 
   return (
     <section id="providers" className="bg-[#FCFBF8] py-16 sm:py-24 lg:py-32 border-b border-[#D9D0C5] overflow-hidden">
@@ -118,10 +144,13 @@ export default function Providers() {
               {/* 4:5 Large Portrait Photography */}
               <div className="relative aspect-[4/5] overflow-hidden mb-5 sm:mb-6 bg-[#F4EFE6] rounded-xs">
                 <img
-                  src={getProviderImageSrc(docItem)}
-                  alt={docItem.name}
+                  src={docItem.image}
+                  alt={docItem.mediaItem?.altText || docItem.name}
                   className="w-full h-full group-hover:scale-104 transition-transform duration-700 filter grayscale-[12%] group-hover:grayscale-0"
-                  style={{ objectFit: 'cover', objectPosition: 'center top' }}
+                  style={{
+                    objectFit: (docItem.mediaItem?.objectFit as any) || 'cover',
+                    objectPosition: docItem.mediaItem?.position || 'center 20%'
+                  }}
                   referrerPolicy="no-referrer"
                 />
               </div>

@@ -1,17 +1,12 @@
-import React, { useMemo } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useParams, Link, Navigate } from 'react-router-dom';
 import { Mail, MapPin } from 'lucide-react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { getDb } from '../lib/firebase';
 import SeoHead from '../components/SeoHead';
 import { useCmsData } from '../context/CmsContext';
-import { DEFAULT_PROVIDERS } from '../data/defaultCmsData';
-import { getProviderImage, getProviderImageSrc, normalizeProviderKey } from '../utils/providerImages';
 
-// ─── Single canonical master data for all three providers ────────────────────
-// This is the ONLY source of truth for provider detail pages.
-// All data is keyed strictly by slug (same slug used on the cards and routes).
-interface ProviderDetailRecord {
-  id: string;
-  slug: string;
+interface DoctorDetailData {
   name: string;
   role: string;
   image: string;
@@ -23,16 +18,13 @@ interface ProviderDetailRecord {
   about: string;
   experienceDetail: string;
   specialities: string[];
-  updatedAt?: any; // cache-busting token from Firestore
 }
 
-const PROVIDER_DETAIL_DATA: Record<string, ProviderDetailRecord> = {
-  'prahlad-gadhavi': {
-    id: 'dr-prahlad-gadhvi',
-    slug: 'dr-prahlad-gadhvi',
+const DEFAULT_DOCTOR_DATA: Record<string, DoctorDetailData> = {
+  'dr-prahlad-gadhvi': {
     name: 'Dr. Prahlad Gadhavi',
     role: 'Primary Care Physician',
-    image: 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
+    image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
     experience: '20 years',
     qualifications: 'MBBS, MD',
     location: '337, Bloomfield Avenue, Newark, NJ-07107',
@@ -50,34 +42,51 @@ const PROVIDER_DETAIL_DATA: Record<string, ProviderDetailRecord> = {
       'Specialist referral coordination'
     ]
   },
-  'deval-gadhvi': {
-    id: 'dr-deval-gadhvi',
-    slug: 'dr-deval-gadhvi',
+  'dr-prahlad-gadhavi': {
+    name: 'Dr. Prahlad Gadhavi',
+    role: 'Primary Care Physician',
+    image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
+    experience: '20 years',
+    qualifications: 'MBBS, MD',
+    location: '337, Bloomfield Avenue, Newark, NJ-07107',
+    phone: '(973) 412-9404',
+    email: 'medicalnewark@gmail.com',
+    about: "Dr. Prahlad Gadhavi is a board-certified Internal Medicine Specialist at Newark Medical Associates. He earned his bachelor's degree in Medicine and Surgery at B.J. Medical College in Ahmedabad, graduating with honors in 2003. He completed his residency in Internal Medicine at Mount Sinai and Beth Israel Medical Centers in New York City.",
+    experienceDetail: 'With more than 20 years of diverse experience in Internal Medicine, Dr. Gadhavi has built a strong reputation for providing compassionate and comprehensive care. His patients trust him for his thorough approach and commitment to helping them understand their treatment options.',
+    specialities: [
+      'Annual & preventative physical exams',
+      'Acute/same-day urgent care visits',
+      'Chronic disease management (hypertension, diabetes, etc.)',
+      'Blood testing & lab work',
+      'EKG & basic cardiac risk screening',
+      'Pre-operative exams',
+      'Specialist referral coordination'
+    ]
+  },
+  'dr-deval-gadhvi': {
     name: 'Dr. Deval Gadhvi',
     role: 'Medical Director - Primary Care Physician',
-    image: '/newark_internal_medicine_4.webp',
+    image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=800',
     experience: '18 years',
     qualifications: 'MBBS, MD',
     location: '337, Bloomfield Avenue, Newark, NJ-07107',
     phone: '(973) 412-9404',
     email: 'medicalnewark@gmail.com',
-    about: "Dr. Deval Gadhvi is a board-certified Internal Medicine Specialist and Medical Director at Newark Medical Associates. She has dedicated her career to preventative healthcare, chronic metabolic management, and comprehensive women's health.",
+    about: 'Dr. Deval Gadhvi is a board-certified Internal Medicine Specialist and Medical Director at Newark Medical Associates. She has dedicated her career to preventative healthcare, chronic metabolic management, and comprehensive women’s health.',
     experienceDetail: 'With over 18 years of clinical leadership and clinical excellence, Dr. Deval Gadhvi is widely respected for her empathetic patient listening, personalized treatment strategies, and proactive wellness programs.',
     specialities: [
       'Comprehensive adult primary care',
-      "Women's wellness & annual examinations",
+      'Women’s wellness & annual examinations',
       'Metabolic syndrome & weight management',
       'Hypertension & diabetes therapeutic care',
       'In-office laboratory & screening coordination',
       'Long-term preventative wellness'
     ]
   },
-  'sankalp-pathak': {
-    id: 'dr-sankalp-pathak',
-    slug: 'dr-sankalp-pathak',
+  'dr-sankalp-pathak': {
     name: 'Dr. Sankalp Pathak',
     role: 'Cardiology Consultant',
-    image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=800',
+    image: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=800',
     experience: '15 years',
     qualifications: 'MD, FACC',
     location: '337, Bloomfield Avenue, Newark, NJ-07107',
@@ -97,61 +106,145 @@ const PROVIDER_DETAIL_DATA: Record<string, ProviderDetailRecord> = {
 
 export default function ProviderDetailPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { providers: cmsProviders, siteMedia } = useCmsData();
+  const { providers, getMediaUrl, getSiteMedia } = useCmsData();
 
-  // 1. Resolve canonical key strictly by slug/id (prahlad-gadhavi, deval-gadhvi, sankalp-pathak)
-  const canonicalKey = normalizeProviderKey(slug || '');
+  // Normalize slug
+  const normalizedSlug = useMemo(() => {
+    if (!slug) return '';
+    const clean = slug.toLowerCase().trim();
+    if (clean === 'prahlad-gadhvi' || clean === 'dr-prahlad-gadhvi' || clean === 'dr-prahlad-gadhavi' || clean === 'prahlad-gadhavi') {
+      return 'dr-prahlad-gadhavi';
+    }
+    if (clean === 'deval-gadhvi' || clean === 'dr-deval-gadhvi') {
+      return 'dr-deval-gadhvi';
+    }
+    if (clean === 'sankalp-pathak' || clean === 'dr-sankalp-pathak') {
+      return 'dr-sankalp-pathak';
+    }
+    return clean;
+  }, [slug]);
 
-  // 2. Get base data from our single source of truth
-  const baseData = PROVIDER_DETAIL_DATA[canonicalKey];
+  const isPrahlad = normalizedSlug === 'dr-prahlad-gadhavi' || normalizedSlug === 'dr-prahlad-gadhvi';
 
-  // 3. Merge with CMS provider data (if available) using normalized key match ONLY
-  const doctor = useMemo((): ProviderDetailRecord | null => {
-    if (!baseData) return null;
+  // Live state for doctor profile & photo to ensure uploaded images render immediately
+  const [liveDoctorProfile, setLiveDoctorProfile] = useState<any>(() => {
+    try {
+      const cached = localStorage.getItem('newark_doctor_profile');
+      return cached ? JSON.parse(cached) : null;
+    } catch (e) {
+      return null;
+    }
+  });
 
-    // Find CMS provider strictly by canonical key — never by index
-    const cmsProvider = cmsProviders.find(
-      (p) => normalizeProviderKey(p.id || p.slug) === canonicalKey
-    );
+  const [liveDoctorPhoto, setLiveDoctorPhoto] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('newark_doctor_photo');
+    } catch (e) {
+      return null;
+    }
+  });
 
-    const mediaId = `providers-${canonicalKey === 'prahlad-gadhavi' ? 'dr-prahlad' : canonicalKey === 'deval-gadhvi' ? 'dr-deval' : 'dr-sankalp'}`;
-    const centralizedImage = siteMedia?.[mediaId]?.url;
-    const resolvedImage = centralizedImage || getProviderImage(cmsProvider || baseData);
-
-    const item = {
-      ...baseData,
-      name: cmsProvider?.name || baseData.name,
-      role: cmsProvider?.title || (cmsProvider as any)?.role || baseData.role,
-      image: resolvedImage,
-      updatedAt: (cmsProvider as any)?.updatedAt || (baseData as any)?.updatedAt,
-      experience: cmsProvider?.experienceYears
-        ? `${cmsProvider.experienceYears} years`
-        : baseData.experience,
-      qualifications: cmsProvider?.credentials || baseData.qualifications,
-      about: cmsProvider?.fullBio || cmsProvider?.bio || baseData.about,
-      phone: cmsProvider?.phone || baseData.phone,
-      email: cmsProvider?.email || baseData.email,
-      specialities:
-        (cmsProvider as any)?.specialties &&
-        (cmsProvider as any).specialties.length > 0
-          ? (cmsProvider as any).specialties
-          : baseData.specialities,
+  // Listen to storage events & Firestore live doc for instant photo sync
+  useEffect(() => {
+    const handleStorage = () => {
+      try {
+        const cached = localStorage.getItem('newark_doctor_profile');
+        if (cached) setLiveDoctorProfile(JSON.parse(cached));
+      } catch (e) {}
     };
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log({
-        provider: item.name,
-        id: item.id,
-        slug: item.slug,
-        image: item.image
-      });
+    window.addEventListener('storage', handleStorage);
+
+    let unsub: (() => void) | undefined;
+    if (isPrahlad) {
+      try {
+        const db = getDb();
+        unsub = onSnapshot(doc(db, 'doctor_profile', 'main'), (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            setLiveDoctorProfile(data);
+            if (data?.photoUrl) {
+              setLiveDoctorPhoto(data.photoUrl);
+            }
+          }
+        }, (err) => console.warn('Live doctor profile snap:', err));
+      } catch (e) {}
     }
 
-    return item;
-  }, [baseData, cmsProviders, siteMedia, canonicalKey]);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      if (unsub) unsub();
+    };
+  }, [isPrahlad]);
 
+  // Find dynamic provider from CMS or fallback with flexible ID matching
+  const dynamicProvider = useMemo(() => {
+    return providers.find(p => 
+      p.slug === slug || 
+      p.id === slug || 
+      p.slug === normalizedSlug || 
+      p.id === normalizedSlug ||
+      (isPrahlad && (
+        p.id === 'dr-prahlad-gadhvi' || 
+        p.id === 'dr-prahlad-gadhavi' || 
+        p.slug === 'dr-prahlad-gadhvi' || 
+        p.slug === 'dr-prahlad-gadhavi' || 
+        p.name?.toLowerCase().includes('prahlad')
+      ))
+    ) || null;
+  }, [providers, slug, normalizedSlug, isPrahlad]);
 
-  // 4. If no matching provider found, redirect to list page
+  const defaultDoctor = DEFAULT_DOCTOR_DATA[normalizedSlug] || DEFAULT_DOCTOR_DATA['dr-prahlad-gadhavi'];
+
+  // Final doctor data merged with CMS and live photo
+  const doctor: DoctorDetailData = useMemo(() => {
+    const cmsSiteMediaUrl = getMediaUrl('providers', 'doctors', normalizedSlug) ||
+      getMediaUrl('providers', 'doctors', (slug || '').replace('dr-', '')) ||
+      getMediaUrl('providers', 'doctors', slug || '') ||
+      getMediaUrl('providers', normalizedSlug, 'portrait') ||
+      getMediaUrl('providers', slug || '', 'portrait') ||
+      getMediaUrl('providers', (slug || '').replace('dr-', ''), 'portrait');
+
+    const effectivePhoto = 
+      cmsSiteMediaUrl ||
+      dynamicProvider?.photoUrl || 
+      dynamicProvider?.imageUrl || 
+      dynamicProvider?.image ||
+      (isPrahlad ? (liveDoctorPhoto || liveDoctorProfile?.photoUrl) : undefined) ||
+      defaultDoctor.image;
+
+    if (dynamicProvider) {
+      return {
+        name: (isPrahlad && liveDoctorProfile?.name) || dynamicProvider.name || defaultDoctor.name,
+        role: (isPrahlad && liveDoctorProfile?.designation) || dynamicProvider.title || dynamicProvider.role || defaultDoctor.role,
+        image: effectivePhoto,
+        experience: dynamicProvider.experienceYears ? `${dynamicProvider.experienceYears} years` : defaultDoctor.experience,
+        qualifications: (isPrahlad && liveDoctorProfile?.qualification) || dynamicProvider.credentials || defaultDoctor.qualifications,
+        location: (isPrahlad && liveDoctorProfile?.clinicAddress) || defaultDoctor.location,
+        phone: (isPrahlad && liveDoctorProfile?.phone) || dynamicProvider.phone || defaultDoctor.phone,
+        email: (isPrahlad && liveDoctorProfile?.email) || dynamicProvider.email || defaultDoctor.email,
+        about: (isPrahlad && liveDoctorProfile?.biography) || dynamicProvider.fullBio || dynamicProvider.bio || defaultDoctor.about,
+        experienceDetail: defaultDoctor.experienceDetail,
+        specialities: dynamicProvider.specialties && dynamicProvider.specialties.length > 0 
+          ? dynamicProvider.specialties 
+          : ((isPrahlad && liveDoctorProfile?.expertise) || defaultDoctor.specialities)
+      };
+    }
+
+    return {
+      ...defaultDoctor,
+      name: (isPrahlad && liveDoctorProfile?.name) || defaultDoctor.name,
+      role: (isPrahlad && liveDoctorProfile?.designation) || defaultDoctor.role,
+      image: effectivePhoto,
+      qualifications: (isPrahlad && liveDoctorProfile?.qualification) || defaultDoctor.qualifications,
+      about: (isPrahlad && liveDoctorProfile?.biography) || defaultDoctor.about,
+      location: (isPrahlad && liveDoctorProfile?.clinicAddress) || defaultDoctor.location,
+      phone: (isPrahlad && liveDoctorProfile?.phone) || defaultDoctor.phone,
+      email: (isPrahlad && liveDoctorProfile?.email) || defaultDoctor.email,
+      specialities: (isPrahlad && liveDoctorProfile?.expertise) || defaultDoctor.specialities
+    };
+  }, [dynamicProvider, defaultDoctor, isPrahlad, liveDoctorPhoto, liveDoctorProfile]);
+
   if (!doctor) {
     return <Navigate to="/providers" replace />;
   }
@@ -182,24 +275,36 @@ export default function ProviderDetailPage() {
         <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-10 lg:gap-14 items-start">
             
-            {/* Left Column: Doctor Photo – always uses doctor.image, no other source */}
+            {/* Left Column: Doctor Photo */}
             <div className="md:col-span-5 flex justify-start">
-              <div className="w-full max-w-[360px] sm:max-w-[380px] aspect-[4/4.3] rounded-[26px] sm:rounded-[28px] overflow-hidden bg-slate-100 shadow-xs border border-slate-200/80">
-                <img
-                  src={getProviderImageSrc(doctor)}
-                  alt={`${doctor.name} - ${doctor.role}`}
-                  className="w-full h-full"
-                  style={{ objectFit: 'cover', objectPosition: 'center top' }}
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    // On load error, fall back to the canonical default for this slug only
-                    const fallback = PROVIDER_DETAIL_DATA[canonicalKey]?.image;
-                    if (fallback && e.currentTarget.src !== fallback) {
-                      e.currentTarget.src = fallback;
-                    }
-                  }}
-                />
-              </div>
+              {(() => {
+                const mediaItem = getSiteMedia('providers', 'doctors', normalizedSlug) ||
+                  getSiteMedia('providers', 'doctors', (slug || '').replace('dr-', '')) ||
+                  getSiteMedia('providers', 'doctors', slug || '') ||
+                  getSiteMedia('providers', normalizedSlug, 'portrait') ||
+                  getSiteMedia('providers', slug || '', 'portrait') ||
+                  getSiteMedia('providers', (slug || '').replace('dr-', ''), 'portrait');
+                return (
+                  <div className="w-full max-w-[360px] sm:max-w-[380px] aspect-[4/4.3] rounded-[26px] sm:rounded-[28px] overflow-hidden bg-slate-100 shadow-xs border border-slate-200/80">
+                    <img
+                      src={doctor.image}
+                      alt={`${doctor.name} - ${doctor.role}`}
+                      className="w-full h-full"
+                      style={{
+                        objectFit: (mediaItem?.objectFit as any) || 'cover',
+                        objectPosition: mediaItem?.position || 'top'
+                      }}
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        if (img.src !== defaultDoctor.image) {
+                          img.src = defaultDoctor.image;
+                        }
+                      }}
+                    />
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Right Column: Name, Title & Key-Value Details */}
@@ -322,7 +427,7 @@ export default function ProviderDetailPage() {
         </div>
       </section>
 
-      {/* Bottom Blue Contact Banner */}
+      {/* Bottom Blue Contact Banner matching screenshot */}
       <section className="bg-[#2563eb] text-white py-14 sm:py-16 px-6 sm:px-8 lg:px-12 mt-16 sm:mt-20">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-8">
           <div className="max-w-md">

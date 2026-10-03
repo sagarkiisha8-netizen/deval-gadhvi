@@ -3,15 +3,13 @@ import {
   X, Upload, Image as ImageIcon, Search, Check, 
   Loader2, Link as LinkIcon, Plus, AlertCircle 
 } from 'lucide-react';
-import { collection, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
-import { getDb } from '../../lib/firebase';
+import { 
+  collection, onSnapshot, addDoc, serverTimestamp, 
+  query, orderBy 
+} from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { getDb, storage } from '../../lib/firebase';
 import { MediaItem } from '../../types';
-import { uploadMediaFile } from '../../utils/mediaStorage';
-import {
-  getLocalMediaItems,
-  mergeMediaItems,
-  saveLocalMediaItem
-} from '../../utils/localMediaLibrary';
 
 interface MediaPickerModalProps {
   isOpen: boolean;
@@ -73,10 +71,10 @@ export default function MediaPickerModal({
     {
       id: 'stock-2',
       name: 'Dr. Prahlad Gadhvi Portrait',
-      url: 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
+      url: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
       size: 320000,
-      type: 'image/png',
-      dimensions: '898x1194',
+      type: 'image/jpeg',
+      dimensions: '800x800',
       altText: 'Dr. Prahlad Gadhvi, MD',
       createdAt: new Date().toISOString()
     },
@@ -127,42 +125,24 @@ export default function MediaPickerModal({
     setLoading(true);
     try {
       const db = getDb();
-      // Read the collection without an orderBy so older assets missing a
-      // createdAt value cannot make the entire media gallery fail.
-      const unsubscribe = onSnapshot(collection(db, 'media_library'), (snapshot) => {
+      const q = query(collection(db, 'media_library'), orderBy('createdAt', 'desc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
         const items: MediaItem[] = [];
         snapshot.forEach((doc) => {
           items.push({ id: doc.id, ...(doc.data() as any) });
         });
-        const merged = mergeMediaItems(items, getLocalMediaItems(), DEFAULT_STOCK_IMAGES);
-        setMediaItems(merged);
+        setMediaItems(items.length > 0 ? items : DEFAULT_STOCK_IMAGES);
         setLoading(false);
       }, (err) => {
         console.warn('Media query fallback:', err);
-        setMediaItems(mergeMediaItems(getLocalMediaItems(), DEFAULT_STOCK_IMAGES));
+        setMediaItems(DEFAULT_STOCK_IMAGES);
         setLoading(false);
       });
       return () => unsubscribe();
     } catch {
-      setMediaItems(mergeMediaItems(getLocalMediaItems(), DEFAULT_STOCK_IMAGES));
+      setMediaItems(DEFAULT_STOCK_IMAGES);
       setLoading(false);
     }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleMediaUpdate = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.type === 'media_library') {
-        setMediaItems(prev => mergeMediaItems(prev, getLocalMediaItems(), DEFAULT_STOCK_IMAGES));
-      }
-    };
-    window.addEventListener('newark_cms_update', handleMediaUpdate);
-    window.addEventListener('storage', handleMediaUpdate);
-    return () => {
-      window.removeEventListener('newark_cms_update', handleMediaUpdate);
-      window.removeEventListener('storage', handleMediaUpdate);
-    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -172,51 +152,121 @@ export default function MediaPickerModal({
     if (!file) return;
 
     setIsUploading(true);
-    setUploadProgress(30);
+    setUploadProgress(10);
     setUploadError(null);
 
-    try {
-      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const { url: permanentUrl, path: storagePath } = await uploadMediaFile(file, `media/${Date.now()}-${cleanFileName}`);
-      setUploadProgress(100);
-
-      const db = getDb();
-      let savedItem: MediaItem = {
-        id: `local-media-${Date.now()}`,
-        name: file.name,
-        url: permanentUrl,
-        path: storagePath,
-        size: file.size,
-        type: file.type,
-        altText: file.name.split('.')[0],
-        createdAt: new Date().toISOString()
+    const fallbackToCompressedBase64 = () => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        const img = new Image();
+        img.onload = async () => {
+          try {
+            const canvas = document.createElement('canvas');
+            const maxDim = 800;
+            let width = img.width;
+            let height = img.height;
+            
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+            }
+            
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            
+            const db = getDb();
+            await addDoc(collection(db, 'media_library'), {
+              name: file.name,
+              url: compressedDataUrl,
+              size: Math.round(compressedDataUrl.length * 0.75),
+              type: 'image/jpeg',
+              altText: file.name.split('.')[0],
+              createdAt: serverTimestamp()
+            });
+            
+            setSelectedUrl(compressedDataUrl);
+            setIsUploading(false);
+            setUploadProgress(null);
+            setActiveTab('gallery');
+          } catch (fallbackErr: any) {
+            setUploadError('Failed to process image: ' + (fallbackErr.message || 'Unknown error'));
+            setIsUploading(false);
+          }
+        };
+        img.onerror = () => {
+          setUploadError('Failed to read image file');
+          setIsUploading(false);
+        };
+        img.src = dataUrl;
       };
+      reader.onerror = () => {
+        setUploadError('Failed to read file');
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    };
 
+    try {
+      const fileId = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const storageRef = ref(storage, `media/${fileId}`);
+      
+      let uploadTask;
       try {
-        const docRef = await addDoc(collection(db, 'media_library'), {
-          name: file.name,
-          url: permanentUrl,
-          path: storagePath,
-          size: file.size,
-          type: file.type,
-          altText: file.name.split('.')[0],
-          createdAt: serverTimestamp()
-        });
-        savedItem = { ...savedItem, id: docRef.id };
-      } catch (firestoreErr) {
-        console.warn('Media library Firestore save failed; using local media cache:', firestoreErr);
+        uploadTask = uploadBytesResumable(storageRef, file);
+      } catch (storageErr) {
+        console.warn('Storage init failed, using fallback:', storageErr);
+        fallbackToCompressedBase64();
+        return;
       }
-
-      saveLocalMediaItem(savedItem);
-      setMediaItems(prev => mergeMediaItems([savedItem], prev, DEFAULT_STOCK_IMAGES));
-      setSelectedUrl(permanentUrl);
-      setActiveTab('gallery');
+      
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          setUploadProgress(progress);
+        },
+        (error) => {
+          console.warn('Storage bucket upload fallback to local data-url:', error);
+          fallbackToCompressedBase64();
+        },
+        async () => {
+          try {
+            const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+            const db = getDb();
+            await addDoc(collection(db, 'media_library'), {
+              name: file.name,
+              url: downloadUrl,
+              path: `media/${fileId}`,
+              size: file.size,
+              type: file.type,
+              altText: file.name.split('.')[0],
+              createdAt: serverTimestamp()
+            });
+            setSelectedUrl(downloadUrl);
+            setIsUploading(false);
+            setUploadProgress(null);
+            setActiveTab('gallery');
+          } catch (dbErr) {
+            console.warn('Failed to save to database or get download URL, using fallback:', dbErr);
+            fallbackToCompressedBase64();
+          }
+        }
+      );
     } catch (err: any) {
       console.error('File upload exception:', err);
-      setUploadError(err.message || 'Upload failed');
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(null);
+      fallbackToCompressedBase64();
     }
   };
 
@@ -225,8 +275,7 @@ export default function MediaPickerModal({
       onSelectImage(customUrl.trim());
       onClose();
     } else if (selectedUrl) {
-      const selectedItem = mediaItems.find((item) => item.url === selectedUrl);
-      onSelectImage(selectedUrl, selectedItem?.altText);
+      onSelectImage(selectedUrl);
       onClose();
     }
   };

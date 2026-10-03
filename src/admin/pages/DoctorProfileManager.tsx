@@ -11,7 +11,6 @@ import { useAdminAuth } from '../context/AdminAuthContext';
 import { useCmsData } from '../../context/CmsContext';
 import { logAdminActivity } from '../utils/auditLogger';
 import { DoctorProfile } from '../../types';
-import { uploadMediaFile, uploadBase64Image, isBase64Image } from '../../utils/mediaStorage';
 
 const DEFAULT_PROFILE: DoctorProfile = {
   id: 'dr-prahlad-gadhavi',
@@ -24,7 +23,7 @@ const DEFAULT_PROFILE: DoctorProfile = {
   clinicName: 'Newark Medical Associates',
   biography: `Dr. Prahlad Gadhavi is a board-certified Internal Medicine Specialist at Newark Medical Associates. He earned his bachelor's degree in Medicine and Surgery at B.J. Medical College in Ahmedabad, graduating with honors in 2003. He completed his residency in Internal Medicine at Mount Sinai and Beth Israel Medical Centers in New York City.\n\nWith more than 20 years of diverse experience in Internal Medicine, Dr. Gadhavi has built a strong reputation for providing compassionate and comprehensive care. His patients trust him for his thorough approach and commitment to helping them understand their treatment options.`,
   introduction: 'Dr. Prahlad Gadhavi is a board-certified Internal Medicine Specialist providing compassionate, comprehensive care with over 20 years of diverse clinical experience.',
-  photoUrl: 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
+  photoUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
   expertise: [
     'Annual & preventative physical exams',
     'Acute/same-day urgent care visits',
@@ -90,10 +89,6 @@ export default function DoctorProfileManager() {
       let preservedPhoto: string | null = null;
       try {
         preservedPhoto = localStorage.getItem('newark_doctor_photo');
-        if (preservedPhoto && (preservedPhoto.includes('newark_internal_medicine') || preservedPhoto.includes('photo-1576091160399'))) {
-          preservedPhoto = null;
-          localStorage.removeItem('newark_doctor_photo');
-        }
       } catch (e) {}
 
       // 1. Instant load from local storage cache if available
@@ -101,16 +96,13 @@ export default function DoctorProfileManager() {
         const local = localStorage.getItem('newark_doctor_profile');
         if (local) {
           const parsed = JSON.parse(local);
-          let activePhoto = preservedPhoto || parsed.photoUrl || DEFAULT_PROFILE.photoUrl;
-          if (activePhoto.includes('newark_internal_medicine') || activePhoto.includes('photo-1576091160399')) {
-            activePhoto = DEFAULT_PROFILE.photoUrl;
-          }
+          const activePhoto = preservedPhoto || parsed.photoUrl || DEFAULT_PROFILE.photoUrl;
 
           if (parsed.experienceYears === 35 || parsed.clinicAddress?.includes('Chestnut') || !parsed.name?.includes('Gadhavi')) {
-            setProfile({ ...DEFAULT_PROFILE, phone: '(973) 412-9404', whatsapp: '+1 (973) 412-9404', photoUrl: activePhoto });
-            localStorage.setItem('newark_doctor_profile', JSON.stringify({ ...DEFAULT_PROFILE, phone: '(973) 412-9404', whatsapp: '+1 (973) 412-9404', photoUrl: activePhoto }));
+            setProfile({ ...DEFAULT_PROFILE, photoUrl: activePhoto });
+            localStorage.setItem('newark_doctor_profile', JSON.stringify({ ...DEFAULT_PROFILE, photoUrl: activePhoto }));
           } else {
-            setProfile({ ...DEFAULT_PROFILE, ...parsed, phone: '(973) 412-9404', whatsapp: '+1 (973) 412-9404', photoUrl: activePhoto });
+            setProfile({ ...DEFAULT_PROFILE, ...parsed, photoUrl: activePhoto });
           }
         } else {
           setProfile({ ...DEFAULT_PROFILE, photoUrl: preservedPhoto || DEFAULT_PROFILE.photoUrl });
@@ -122,10 +114,16 @@ export default function DoctorProfileManager() {
       // 2. Fetch latest from Firestore
       try {
         const db = getDb();
-        const snap = await getDoc(doc(db, 'doctor_profile', 'main'));
+        const [snap, providerSnap] = await Promise.all([
+          getDoc(doc(db, 'doctor_profile', 'main')),
+          getDoc(doc(db, 'providers', 'dr-prahlad-gadhvi'))
+        ]);
+        
+        const canonicalPhoto = providerSnap.exists() ? (providerSnap.data().imageUrl || providerSnap.data().photoUrl) : null;
+
         if (snap.exists()) {
           const remoteData = snap.data() as DoctorProfile;
-          const activePhoto = preservedPhoto || remoteData.photoUrl || DEFAULT_PROFILE.photoUrl;
+          const activePhoto = canonicalPhoto || preservedPhoto || remoteData.photoUrl || DEFAULT_PROFILE.photoUrl;
 
           if (remoteData.experienceYears === 35 || remoteData.clinicAddress?.includes('Chestnut') || !remoteData.name?.includes('Gadhavi')) {
             const upgraded = { ...DEFAULT_PROFILE, photoUrl: activePhoto };
@@ -153,28 +151,16 @@ export default function DoctorProfileManager() {
     loadDoctorProfile();
   }, []);
 
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-
-  const handleSave = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
     setSaving(true);
     setToastMessage(null);
 
-    let photoUrl = profile.photoUrl;
-    if (isBase64Image(photoUrl)) {
-      try {
-        photoUrl = await uploadBase64Image(photoUrl, 'providers/prahlad-gadhavi');
-        setProfile((prev) => ({ ...prev, photoUrl }));
-      } catch (uploadErr) {
-        console.warn('Could not migrate base64 photo before saving:', uploadErr);
-      }
-    }
-
     // Save to local storage cache immediately
     try {
-      localStorage.setItem('newark_doctor_profile', JSON.stringify({ ...profile, photoUrl }));
-      if (photoUrl) {
-        localStorage.setItem('newark_doctor_photo', photoUrl);
+      localStorage.setItem('newark_doctor_profile', JSON.stringify(profile));
+      if (profile.photoUrl) {
+        localStorage.setItem('newark_doctor_photo', profile.photoUrl);
       }
       window.dispatchEvent(new Event('storage'));
     } catch (e) {}
@@ -183,7 +169,6 @@ export default function DoctorProfileManager() {
       const db = getDb();
       const updated = {
         ...profile,
-        photoUrl,
         updatedAt: serverTimestamp()
       };
 
@@ -200,9 +185,9 @@ export default function DoctorProfileManager() {
         specialty: profile.speciality,
         bio: profile.introduction,
         fullBio: profile.biography,
-        imageUrl: photoUrl,
-        photoUrl: photoUrl,
-        image: photoUrl,
+        imageUrl: profile.photoUrl,
+        photoUrl: profile.photoUrl,
+        image: profile.photoUrl,
         experienceYears: profile.experienceYears,
         certifications: profile.certifications,
         specialties: profile.expertise,
@@ -241,25 +226,54 @@ export default function DoctorProfileManager() {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          // Auto-resize large files to max 800px & compress to ~70KB to guarantee instant Firestore sync & local rendering
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 800;
 
-    setIsUploadingPhoto(true);
-    try {
-      const { url: permanentUrl } = await uploadMediaFile(file, 'providers/prahlad-gadhavi');
-      setProfile((prev) => ({ ...prev, photoUrl: permanentUrl }));
-      try {
-        localStorage.setItem('newark_doctor_photo', permanentUrl);
-        window.dispatchEvent(new Event('storage'));
-      } catch (err) {}
-      setToastMessage('Photo uploaded successfully to persistent storage!');
-      setTimeout(() => setToastMessage(null), 3000);
-    } catch (err: any) {
-      console.error('Photo upload failed:', err);
-      setToastMessage(`Upload failed: ${err.message || 'Unknown error'}`);
-    } finally {
-      setIsUploadingPhoto(false);
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.88);
+            setProfile((prev) => ({ ...prev, photoUrl: compressed }));
+            try {
+              localStorage.setItem('newark_doctor_photo', compressed);
+              window.dispatchEvent(new Event('storage'));
+            } catch (err) {}
+          } else {
+            const raw = event.target?.result as string;
+            setProfile((prev) => ({ ...prev, photoUrl: raw }));
+            try {
+              localStorage.setItem('newark_doctor_photo', raw);
+              window.dispatchEvent(new Event('storage'));
+            } catch (err) {}
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -392,35 +406,10 @@ export default function DoctorProfileManager() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Photo Column */}
-            <div className="md:col-span-1 space-y-3 text-center">
-              {/* Image Placement Banner */}
-              <div className="p-3 bg-primary-50 border border-primary-200 rounded-2xl text-left space-y-1">
-                <div className="flex items-center gap-1.5 text-primary-800 text-[11px] font-bold uppercase tracking-wider">
-                  <ExternalLink size={12} />
-                  <span>Where This Photo Displays</span>
-                </div>
-                <p className="text-[11px] text-slate-600 leading-snug">
-                  • <strong>Homepage</strong> Care Philosophy & Doctor Overview<br />
-                  • <strong>About Page</strong> Physician Bio & Honors<br />
-                  • <strong>Provider Directory</strong> (/providers)<br />
-                  • <strong>Doctor Detail Page</strong> (/providers/dr-prahlad-gadhvi)
-                </p>
-                <div className="pt-1">
-                  <a
-                    href="/providers/dr-prahlad-gadhvi"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-primary-700 hover:text-primary-900 underline"
-                  >
-                    <span>View on Live Website</span>
-                    <ExternalLink size={10} />
-                  </a>
-                </div>
-              </div>
-
+            <div className="md:col-span-1 space-y-4 text-center">
               <div className="w-44 h-52 mx-auto rounded-2xl overflow-hidden border-2 border-slate-200 shadow-sm bg-slate-100 relative group">
                 <img
-                  src={profile.photoUrl || 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194'}
+                  src={profile.photoUrl || 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800'}
                   alt={profile.name}
                   className="w-full h-full object-cover"
                 />
