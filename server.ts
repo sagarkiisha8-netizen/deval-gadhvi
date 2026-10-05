@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
-import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 
 // Default base domain (no example.com)
@@ -70,120 +70,35 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-
-  // Static uploads directory
-  const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-  app.use('/uploads', express.static(uploadsDir));
-
-  const cmsCachePath = path.join(uploadsDir, 'cms-cache.json');
-  const allowedCmsCacheSections = new Set([
-    'siteMedia',
-    'providers',
-    'services',
-    'homeContent',
-    'aboutContent'
-  ]);
-
-  const readCmsCache = (): Record<string, any> => {
+  // Local development bridge for Netlify Function: upload-provider-image
+  app.all('/.netlify/functions/upload-provider-image', express.raw({ type: '*/*', limit: '10mb' }), async (req, res) => {
     try {
-      if (!fs.existsSync(cmsCachePath)) return {};
-      const raw = fs.readFileSync(cmsCachePath, 'utf8');
-      return raw ? JSON.parse(raw) : {};
-    } catch (err) {
-      console.warn('CMS cache read failed:', err);
-      return {};
-    }
-  };
-
-  const writeCmsCache = (cache: Record<string, any>) => {
-    const tmpPath = `${cmsCachePath}.tmp`;
-    fs.writeFileSync(tmpPath, JSON.stringify(cache, null, 2));
-    fs.renameSync(tmpPath, cmsCachePath);
-  };
-
-  // 0. Image Upload & Migration API
-  app.post('/api/upload', (req, res) => {
-    try {
-      const { fileData, filename, folder = 'media' } = req.body;
-      if (!fileData) {
-        return res.status(400).json({ error: 'No fileData provided' });
+      const { handler } = await import('./netlify/functions/upload-provider-image');
+      const event: any = {
+        httpMethod: req.method,
+        headers: req.headers,
+        queryStringParameters: req.query,
+        body: Buffer.isBuffer(req.body) ? req.body.toString('binary') : (req.body || ''),
+        isBase64Encoded: false,
+      };
+      const result = await handler(event, {} as any, () => {});
+      if (!result) {
+        return res.status(500).json({ error: 'No response from function' });
       }
-
-      let buffer: Buffer;
-      let ext = 'webp';
-      if (typeof fileData === 'string' && fileData.startsWith('data:')) {
-        const matches = fileData.match(/^data:([A-Za-z0-9-+\/]+);base64,(.+)$/);
-        if (matches && matches.length === 3) {
-          const mimeType = matches[1];
-          if (mimeType.includes('png')) ext = 'png';
-          else if (mimeType.includes('jpeg') || mimeType.includes('jpg')) ext = 'jpg';
-          else if (mimeType.includes('webp')) ext = 'webp';
-          else if (mimeType.includes('gif')) ext = 'gif';
-          buffer = Buffer.from(matches[2], 'base64');
-        } else {
-          const base64Data = fileData.split(',')[1] || fileData;
-          buffer = Buffer.from(base64Data, 'base64');
+      res.status(result.statusCode || 200);
+      if (result.headers) {
+        for (const [key, value] of Object.entries(result.headers)) {
+          res.setHeader(key, value as string);
         }
-      } else if (typeof fileData === 'string') {
-        buffer = Buffer.from(fileData, 'base64');
-      } else {
-        return res.status(400).json({ error: 'Invalid fileData format' });
       }
-
-      const targetFolder = path.join(uploadsDir, folder);
-      if (!fs.existsSync(targetFolder)) {
-        fs.mkdirSync(targetFolder, { recursive: true });
-      }
-
-      const cleanFilename = filename 
-        ? filename.replace(/[^a-zA-Z0-9._-]/g, '_')
-        : `upload-${Date.now()}.${ext}`;
-      
-      const filePath = path.join(targetFolder, cleanFilename);
-      fs.writeFileSync(filePath, buffer);
-
-      const publicUrl = `/uploads/${folder}/${cleanFilename}`;
-      return res.json({
-        success: true,
-        url: publicUrl,
-        filename: cleanFilename,
-        size: buffer.length,
-        folder
-      });
+      res.send(result.body);
     } catch (err: any) {
-      console.error('Server upload error:', err);
-      return res.status(500).json({ error: err.message || 'Upload failed' });
+      console.error('[Local Netlify Function Error]:', err);
+      res.status(500).json({ error: err.message || 'Function execution error' });
     }
   });
 
-  app.get('/api/cms-cache', (_req, res) => {
-    res.setHeader('Cache-Control', 'no-store, max-age=0');
-    res.json(readCmsCache());
-  });
-
-  app.patch('/api/cms-cache/:section', (req, res) => {
-    try {
-      const { section } = req.params;
-      if (!allowedCmsCacheSections.has(section)) {
-        return res.status(400).json({ error: 'Unsupported CMS cache section' });
-      }
-
-      const cache = readCmsCache();
-      cache[section] = req.body?.data ?? req.body ?? {};
-      cache.updatedAt = new Date().toISOString();
-      writeCmsCache(cache);
-
-      res.json({ success: true, section, data: cache[section] });
-    } catch (err: any) {
-      console.error('CMS cache write error:', err);
-      res.status(500).json({ error: err.message || 'CMS cache write failed' });
-    }
-  });
+  app.use(express.json());
 
   // 1. Dynamic Standard XML Sitemap
   app.get('/sitemap.xml', (req, res) => {

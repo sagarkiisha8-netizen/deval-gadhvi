@@ -13,9 +13,7 @@ export const DEFAULT_PROVIDERS: Provider[] = [
     specialty: 'Internal Medicine Specialist',
     bio: "Dr. Prahlad Gadhavi is a board-certified Internal Medicine Specialist at Newark Medical Associates. He earned his bachelor's degree in Medicine and Surgery at B.J. Medical College in Ahmedabad, graduating with honors in 2003. He completed his residency in Internal Medicine at Mount Sinai and Beth Israel Medical Centers in New York City.",
     fullBio: "With more than 20 years of diverse experience in Internal Medicine, Dr. Gadhavi has built a strong reputation for providing compassionate and comprehensive care. His patients trust him for his thorough approach and commitment to helping them understand their treatment options.",
-    image: 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
-    imageUrl: 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
-    photoUrl: 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
+    imageUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
     experienceYears: 20,
     education: [
       "Bachelor's degree in Medicine and Surgery (MBBS) – B.J. Medical College, Ahmedabad (Honors 2003)",
@@ -27,7 +25,6 @@ export const DEFAULT_PROVIDERS: Provider[] = [
       'Advanced Cardiac Life Support (ACLS)',
       'New Jersey State Medical Board License'
     ],
-    specialties: ['Internal Medicine', 'Preventative Screenings', 'Chronic Illness Management', 'Geriatric Care'],
     languages: ['English', 'Gujarati', 'Hindi', 'Spanish (Clinical)'],
     insuranceAccepted: ['Medicare', 'Medicaid', 'Horizon Blue Cross', 'Aetna', 'Cigna', 'UnitedHealthcare', 'Oxford', 'Amerigroup'],
     rating: 4.9,
@@ -50,9 +47,7 @@ export const DEFAULT_PROVIDERS: Provider[] = [
     specialty: 'Internal Medicine, Women’s Health & Chronic Disease',
     bio: 'Dr. Deval Gadhvi specializes in personalized chronic illness management, cardiovascular wellness, and preventative screenings designed for long-term vitality.',
     fullBio: 'Dr. Deval Gadhvi brings extensive clinical expertise in comprehensive primary care, diagnostic ultrasound evaluations, and chronic disease mitigation. Known for her deeply empathetic listening and evidence-based approach, Dr. Gadhvi works closely with patients to craft actionable lifestyle and clinical regimens.',
-    image: '/newark_internal_medicine_4.webp',
-    imageUrl: '/newark_internal_medicine_4.webp',
-    photoUrl: '/newark_internal_medicine_4.webp',
+    imageUrl: 'https://images.unsplash.com/photo-1594824813627-2c9ffea824f9?auto=format&fit=crop&q=80&w=800',
     experienceYears: 18,
     education: [
       'Doctor of Medicine (MD)',
@@ -64,7 +59,6 @@ export const DEFAULT_PROVIDERS: Provider[] = [
       'NCQA Diabetes & Heart Disease Recognition',
       'Diagnostic Ultrasound Certified'
     ],
-    specialties: ['Internal Medicine', "Women's Health", 'Preventative Cardiology', 'Metabolic Wellness'],
     languages: ['English', 'Spanish', 'Gujarati', 'Hindi'],
     insuranceAccepted: ['Medicare', 'Horizon BCBS', 'Aetna', 'Cigna', 'UnitedHealthcare', 'WellCare', 'Fidelis'],
     rating: 4.9,
@@ -87,9 +81,7 @@ export const DEFAULT_PROVIDERS: Provider[] = [
     specialty: 'Preventive Cardiology & Rapid Diagnostics',
     bio: 'Focused on early detection, Dr. Pathak combines state-of-the-art diagnostic imaging, EKG/Echo diagnostics, and rapid clinical protocols to safeguard cardiac health.',
     fullBio: 'Dr. Sankalp Pathak focuses on early diagnostic detection, on-site cardiovascular assessments, and comprehensive pulmonary care. His patient-first philosophy ensures each individual receives clear explanations and timely interventions.',
-    image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=800',
     imageUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=800',
-    photoUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=800',
     experienceYears: 14,
     education: [
       'Doctor of Medicine (MD)',
@@ -101,7 +93,6 @@ export const DEFAULT_PROVIDERS: Provider[] = [
       'National Board of Echocardiography Certified',
       'BLS / ACLS Instructor'
     ],
-    specialties: ['Cardiology', 'Cardiac Ultrasound / ECHO', 'EKG Interpretation', 'Cardiovascular Risk Stratification'],
     languages: ['English', 'Hindi', 'Gujarati'],
     insuranceAccepted: ['Medicare', 'Horizon BCBS', 'Aetna', 'Cigna', 'UnitedHealthcare', 'Amerigroup', 'Braven Health'],
     rating: 4.8,
@@ -378,10 +369,20 @@ export const DEFAULT_HOME_PAGE: HomePageContent = {
   },
   carePhilosophyImage: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&q=85&w=1400',
   fullWidthImage: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=85&w=2400',
+  whyChooseUs: {
+    tag: 'Why Patients Choose Us',
+    title: 'Modern Healthcare Centered Around Your Comfort & Time',
+    subtitle: 'We eliminate the friction of traditional medical visits by offering on-site diagnostics, minimal wait times, and direct doctor communication.'
+  },
   process: {
     tag: 'Your Care Journey',
     title: 'Simple, Transparent, and Focused on Your Well-being',
     subtitle: 'From scheduling to post-visit follow-ups, here is how we ensure seamless medical care.'
+  },
+  testimonials: {
+    tag: 'Patient Testimonials',
+    title: 'Loved by Our Newark Patients & Families',
+    subtitle: 'Read genuine feedback from patients who trust Newark Medical Associates for their healthcare needs.'
   },
   faq: {
     tag: 'Frequently Asked Questions',
@@ -389,13 +390,22 @@ export const DEFAULT_HOME_PAGE: HomePageContent = {
     subtitle: 'Find answers to common questions about booking, insurance coverage, and our clinical services.',
     items: DEFAULT_FAQS
   },
+  ctaBanner: {
+    headline: 'Ready to Experience Better Healthcare in Newark?',
+    subtitle: 'Schedule your comprehensive physical exam, chronic care consultation, or diagnostic screening today.',
+    buttonText: 'Schedule an Appointment',
+    buttonLink: '/contact',
+    phoneText: 'Or call us directly at (973) 412-9404'
+  },
   sectionVisibility: {
     hero: true,
     stats: true,
     services: true,
     about: true,
+    whyChooseUs: true,
     process: true,
     providers: true,
+    testimonials: true,
     faq: true,
     contact: true,
     floatingDock: true
@@ -634,7 +644,7 @@ export const DEFAULT_BLOGS: import('../types').BlogPost[] = [
     slug: 'understanding-high-blood-pressure-risks-management',
     author: 'Dr. Prahlad Gadhvi',
     authorTitle: 'MD, FACP – Medical Director',
-    authorAvatar: 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
+    authorAvatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
     category: 'Cardiovascular Health',
     categoryId: 'cat-cardiovascular-health',
     tags: ['Hypertension', 'Heart Health', 'Blood Pressure', 'Preventive Cardiology'],
@@ -698,7 +708,7 @@ export const DEFAULT_BLOGS: import('../types').BlogPost[] = [
     slug: 'why-annual-wellness-checkup-cornerstone-health',
     author: 'Dr. Deval Gadhvi',
     authorTitle: 'MD – Lead Primary Care Physician',
-    authorAvatar: '/newark_internal_medicine_4.webp',
+    authorAvatar: 'https://images.unsplash.com/photo-1594824813627-2c9ffea824f9?auto=format&fit=crop&q=80&w=800',
     category: 'Preventive Care',
     categoryId: 'cat-preventive-care',
     tags: ['Annual Physical', 'Preventive Care', 'Wellness Exam', 'Health Screenings'],
@@ -890,7 +900,7 @@ export const DEFAULT_BLOG_AUTHORS: import('../types').BlogAuthor[] = [
   {
     id: 'author-prahlad-gadhvi',
     name: 'Dr. Prahlad Gadhavi',
-    profilePhoto: 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
+    profilePhoto: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
     designation: 'Medical Director & Board-Certified Internist',
     qualification: 'MBBS, MD, FACP',
     bio: 'Over 20 years of clinical experience in comprehensive primary care, diagnostic cardiology, and chronic disease management in Newark, NJ.',
@@ -904,7 +914,7 @@ export const DEFAULT_BLOG_AUTHORS: import('../types').BlogAuthor[] = [
   {
     id: 'author-deval-gadhvi',
     name: 'Dr. Deval Gadhvi',
-    profilePhoto: '/newark_internal_medicine_4.webp',
+    profilePhoto: 'https://images.unsplash.com/photo-1594824813581-79b8ba0043c7?auto=format&fit=crop&q=80&w=800',
     designation: 'Primary Care Physician',
     qualification: 'MD, Internal Medicine',
     bio: 'Dedicated to women\'s health, adult wellness physicals, and proactive preventative care for diverse urban communities.',
@@ -915,7 +925,7 @@ export const DEFAULT_BLOG_AUTHORS: import('../types').BlogAuthor[] = [
   {
     id: 'author-sankalp-pathak',
     name: 'Dr. Sankalp Pathak',
-    profilePhoto: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=800',
+    profilePhoto: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=800',
     designation: 'Internal Medicine Specialist',
     qualification: 'MD',
     bio: 'Clinical expert focusing on hypertension protocols, geriatric wellness, and metabolic screenings.',
@@ -946,3 +956,5 @@ export const DEFAULT_BLOG_TAGS: import('../types').BlogTag[] = [
   { id: 'tag-preventive-care', name: 'Preventive Care', slug: 'preventive-care', description: 'Routine checkups, blood work panels, and annual physicals' },
   { id: 'tag-diagnostics', name: 'Diagnostic Testing', slug: 'diagnostic-testing', description: 'In-office lab tests, ultrasounds, and rapid diagnostics' }
 ];
+
+

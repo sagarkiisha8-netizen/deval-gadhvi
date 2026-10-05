@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Plus, Edit2, Trash2, Check, X, 
   Search, Image as ImageIcon, Star, Phone, Mail, 
-  Globe, Eye, EyeOff, Save, Loader2, Sparkles, ArrowUpDown 
+  Globe, Eye, EyeOff, Save, Loader2, Sparkles, ArrowUpDown,
+  Upload, AlertCircle
 } from 'lucide-react';
 import { 
   collection, onSnapshot, doc, setDoc, deleteDoc, 
-  serverTimestamp, query, orderBy 
+  serverTimestamp, query, orderBy, addDoc 
 } from 'firebase/firestore';
 import { getDb } from '../../lib/firebase';
 import { Provider } from '../../types';
@@ -24,6 +25,83 @@ export default function ProvidersManager() {
   const [editingProvider, setEditingProvider] = useState<Partial<Provider> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+
+  const handleDirectPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingProvider) return;
+
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setPhotoUploadError('Please select a valid image (JPG, PNG, WebP, AVIF).');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setPhotoUploadError('File exceeds 10 MB limit.');
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    setPhotoUploadError(null);
+
+    try {
+      let finalUrl = '';
+
+      // 1. Try uploading to Cloudflare R2
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const pid = editingProvider.id || 'dr-deval-gadhvi';
+        const res = await fetch(`/.netlify/functions/upload-provider-image?providerId=${encodeURIComponent(pid)}`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json.imageUrl) {
+            finalUrl = json.imageUrl;
+          }
+        }
+      } catch (r2Err) {
+        console.warn('R2 direct endpoint unavailable, using local client preview:', r2Err);
+      }
+
+      // 2. Client-side local reader fallback if cloud endpoint is not active
+      if (!finalUrl) {
+        finalUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      setEditingProvider(prev => prev ? { ...prev, imageUrl: finalUrl, photoUrl: finalUrl } : null);
+
+      try {
+        const db = getDb();
+        await addDoc(collection(db, 'media_library'), {
+          name: file.name,
+          url: finalUrl,
+          size: file.size,
+          type: file.type,
+          altText: editingProvider.name || file.name.split('.')[0],
+          source: finalUrl.startsWith('data:') ? 'local-upload' : 'r2',
+          createdAt: serverTimestamp(),
+        });
+      } catch (e) {
+        console.warn('Media library log skipped:', e);
+      }
+    } catch (err: any) {
+      console.error('Direct photo upload error:', err);
+      setPhotoUploadError(err.message || 'Failed to read image from device.');
+    } finally {
+      setIsUploadingPhoto(false);
+      e.target.value = '';
+    }
+  };
 
   // Subscriptions
   useEffect(() => {
@@ -353,26 +431,49 @@ export default function ProvidersManager() {
             {/* Modal Body Form */}
             <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Photo Selector */}
-              <div className="flex items-center gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                <div className="w-20 h-20 rounded-2xl bg-slate-200 overflow-hidden shrink-0 border-2 border-white shadow-sm">
-                  <img
-                    src={editingProvider.imageUrl || 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800'}
-                    alt="Provider preview"
-                    className="w-full h-full object-cover"
-                  />
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex items-center gap-6">
+                  <div className="w-20 h-20 rounded-2xl bg-slate-200 overflow-hidden shrink-0 border-2 border-white shadow-sm">
+                    <img
+                      src={editingProvider.imageUrl || 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800'}
+                      alt="Provider preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-bold text-slate-900 mb-1">Provider Photo</h4>
+                    <p className="text-xs text-slate-500 mb-3">Professional high-resolution headshot stored permanently in Cloudflare R2</p>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer transition-all hover:shadow-lg">
+                        {isUploadingPhoto ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                        <span>{isUploadingPhoto ? 'Uploading from PC...' : '📁 Choose Photo from PC / Computer'}</span>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/avif"
+                          onChange={handleDirectPhotoUpload}
+                          disabled={isUploadingPhoto}
+                          className="hidden"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setIsMediaPickerOpen(true)}
+                        className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 active:bg-slate-100 rounded-xl text-xs font-semibold text-slate-700 shadow-xs transition-colors"
+                      >
+                        <ImageIcon size={15} />
+                        <span>Media Library</span>
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-2">Pick any picture directly from your Desktop, Downloads, or Folders (JPG, PNG, WebP up to 10MB)</p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-bold text-slate-900 mb-1">Provider Photo</h4>
-                  <p className="text-xs text-slate-500 mb-3">Professional high-resolution headshot in medical attire</p>
-                  <button
-                    type="button"
-                    onClick={() => setIsMediaPickerOpen(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-700 shadow-xs"
-                  >
-                    <ImageIcon size={14} />
-                    <span>Choose from Media Library / Upload</span>
-                  </button>
-                </div>
+
+                {photoUploadError && (
+                  <div className="p-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span>{photoUploadError}</span>
+                  </div>
+                )}
               </div>
 
               {/* Row 1: Name & Credentials */}
@@ -578,9 +679,10 @@ export default function ProvidersManager() {
         isOpen={isMediaPickerOpen}
         onClose={() => setIsMediaPickerOpen(false)}
         title="Select Provider Profile Photo"
+        providerId={editingProvider?.id || 'dr-deval-gadhvi'}
         onSelectImage={(imageUrl) => {
           if (editingProvider) {
-            setEditingProvider({ ...editingProvider, imageUrl });
+            setEditingProvider({ ...editingProvider, imageUrl, photoUrl: imageUrl });
           }
         }}
       />

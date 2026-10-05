@@ -1,460 +1,164 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
-import { Mail, MapPin } from 'lucide-react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { getDb } from '../lib/firebase';
+import { Mail, MapPin, ArrowLeft } from 'lucide-react';
 import SeoHead from '../components/SeoHead';
 import { useCmsData } from '../context/CmsContext';
 
-interface DoctorDetailData {
-  name: string;
-  role: string;
-  image: string;
-  experience: string;
-  qualifications: string;
-  location: string;
-  phone: string;
-  email: string;
-  about: string;
-  experienceDetail: string;
-  specialities: string[];
-}
-
-const DEFAULT_DOCTOR_DATA: Record<string, DoctorDetailData> = {
-  'dr-prahlad-gadhvi': {
-    name: 'Dr. Prahlad Gadhavi',
-    role: 'Primary Care Physician',
-    image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
-    experience: '20 years',
-    qualifications: 'MBBS, MD',
-    location: '337, Bloomfield Avenue, Newark, NJ-07107',
-    phone: '(973) 412-9404',
-    email: 'medicalnewark@gmail.com',
-    about: "Dr. Prahlad Gadhavi is a board-certified Internal Medicine Specialist at Newark Medical Associates. He earned his bachelor's degree in Medicine and Surgery at B.J. Medical College in Ahmedabad, graduating with honors in 2003. He completed his residency in Internal Medicine at Mount Sinai and Beth Israel Medical Centers in New York City.",
-    experienceDetail: 'With more than 20 years of diverse experience in Internal Medicine, Dr. Gadhavi has built a strong reputation for providing compassionate and comprehensive care. His patients trust him for his thorough approach and commitment to helping them understand their treatment options.',
-    specialities: [
-      'Annual & preventative physical exams',
-      'Acute/same-day urgent care visits',
-      'Chronic disease management (hypertension, diabetes, etc.)',
-      'Blood testing & lab work',
-      'EKG & basic cardiac risk screening',
-      'Pre-operative exams',
-      'Specialist referral coordination'
-    ]
-  },
-  'dr-prahlad-gadhavi': {
-    name: 'Dr. Prahlad Gadhavi',
-    role: 'Primary Care Physician',
-    image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
-    experience: '20 years',
-    qualifications: 'MBBS, MD',
-    location: '337, Bloomfield Avenue, Newark, NJ-07107',
-    phone: '(973) 412-9404',
-    email: 'medicalnewark@gmail.com',
-    about: "Dr. Prahlad Gadhavi is a board-certified Internal Medicine Specialist at Newark Medical Associates. He earned his bachelor's degree in Medicine and Surgery at B.J. Medical College in Ahmedabad, graduating with honors in 2003. He completed his residency in Internal Medicine at Mount Sinai and Beth Israel Medical Centers in New York City.",
-    experienceDetail: 'With more than 20 years of diverse experience in Internal Medicine, Dr. Gadhavi has built a strong reputation for providing compassionate and comprehensive care. His patients trust him for his thorough approach and commitment to helping them understand their treatment options.',
-    specialities: [
-      'Annual & preventative physical exams',
-      'Acute/same-day urgent care visits',
-      'Chronic disease management (hypertension, diabetes, etc.)',
-      'Blood testing & lab work',
-      'EKG & basic cardiac risk screening',
-      'Pre-operative exams',
-      'Specialist referral coordination'
-    ]
-  },
-  'dr-deval-gadhvi': {
-    name: 'Dr. Deval Gadhvi',
-    role: 'Medical Director - Primary Care Physician',
-    image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=800',
-    experience: '18 years',
-    qualifications: 'MBBS, MD',
-    location: '337, Bloomfield Avenue, Newark, NJ-07107',
-    phone: '(973) 412-9404',
-    email: 'medicalnewark@gmail.com',
-    about: 'Dr. Deval Gadhvi is a board-certified Internal Medicine Specialist and Medical Director at Newark Medical Associates. She has dedicated her career to preventative healthcare, chronic metabolic management, and comprehensive women’s health.',
-    experienceDetail: 'With over 18 years of clinical leadership and clinical excellence, Dr. Deval Gadhvi is widely respected for her empathetic patient listening, personalized treatment strategies, and proactive wellness programs.',
-    specialities: [
-      'Comprehensive adult primary care',
-      'Women’s wellness & annual examinations',
-      'Metabolic syndrome & weight management',
-      'Hypertension & diabetes therapeutic care',
-      'In-office laboratory & screening coordination',
-      'Long-term preventative wellness'
-    ]
-  },
-  'dr-sankalp-pathak': {
-    name: 'Dr. Sankalp Pathak',
-    role: 'Cardiology Consultant',
-    image: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=800',
-    experience: '15 years',
-    qualifications: 'MD, FACC',
-    location: '337, Bloomfield Avenue, Newark, NJ-07107',
-    phone: '(973) 412-9404',
-    email: 'medicalnewark@gmail.com',
-    about: 'Dr. Sankalp Pathak is a board-certified Cardiologist and clinical consultant at Newark Medical Associates, focusing on non-invasive cardiovascular imaging and proactive cardiac disease prevention.',
-    experienceDetail: 'With 15 years of specialized cardiology practice, Dr. Pathak brings advanced diagnostic evaluation, stress testing, and echocardiography to our outpatient Newark clinic.',
-    specialities: [
-      'Comprehensive cardiac risk assessments',
-      '12-lead EKG interpretation & monitoring',
-      'Echocardiogram (ECHO) ultrasound diagnostics',
-      'Hypertension & dyslipidemia management',
-      'Pre-operative cardiac clearances'
-    ]
-  }
-};
+// Neutral placeholder
+const PLACEHOLDER_IMAGE =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" fill="%23E8E4DC"><rect width="400" height="500"/><circle cx="200" cy="170" r="80" fill="%23C8C0B0"/><ellipse cx="200" cy="420" rx="140" ry="100" fill="%23C8C0B0"/></svg>';
 
 export default function ProviderDetailPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { providers, getMediaUrl, getSiteMedia } = useCmsData();
+  const { providers, loading } = useCmsData();
 
-  // Normalize slug
-  const normalizedSlug = useMemo(() => {
-    if (!slug) return '';
-    const clean = slug.toLowerCase().trim();
-    if (clean === 'prahlad-gadhvi' || clean === 'dr-prahlad-gadhvi' || clean === 'dr-prahlad-gadhavi' || clean === 'prahlad-gadhavi') {
-      return 'dr-prahlad-gadhavi';
-    }
-    if (clean === 'deval-gadhvi' || clean === 'dr-deval-gadhvi') {
-      return 'dr-deval-gadhvi';
-    }
-    if (clean === 'sankalp-pathak' || clean === 'dr-sankalp-pathak') {
-      return 'dr-sankalp-pathak';
-    }
-    return clean;
-  }, [slug]);
+  // Find provider exactly matching the slug (or fallback id matching)
+  const provider = useMemo(() => {
+    if (!slug) return null;
+    const cleanSlug = slug.toLowerCase().trim();
+    return providers.find(p => {
+      // Direct matches
+      if (p.slug === cleanSlug || p.id === cleanSlug) return true;
+      // Handle the Prahlad legacy slug collisions
+      if (cleanSlug.includes('prahlad') && (p.id.includes('prahlad') || p.slug?.includes('prahlad'))) return true;
+      return false;
+    }) || null;
+  }, [providers, slug]);
 
-  const isPrahlad = normalizedSlug === 'dr-prahlad-gadhavi' || normalizedSlug === 'dr-prahlad-gadhvi';
+  if (loading) {
+    return <div className="min-h-screen bg-[#FCFBF8] flex items-center justify-center">Loading provider details...</div>;
+  }
 
-  // Live state for doctor profile & photo to ensure uploaded images render immediately
-  const [liveDoctorProfile, setLiveDoctorProfile] = useState<any>(() => {
-    try {
-      const cached = localStorage.getItem('newark_doctor_profile');
-      return cached ? JSON.parse(cached) : null;
-    } catch (e) {
-      return null;
-    }
-  });
-
-  const [liveDoctorPhoto, setLiveDoctorPhoto] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem('newark_doctor_photo');
-    } catch (e) {
-      return null;
-    }
-  });
-
-  // Listen to storage events & Firestore live doc for instant photo sync
-  useEffect(() => {
-    const handleStorage = () => {
-      try {
-        const cached = localStorage.getItem('newark_doctor_profile');
-        if (cached) setLiveDoctorProfile(JSON.parse(cached));
-      } catch (e) {}
-    };
-
-    window.addEventListener('storage', handleStorage);
-
-    let unsub: (() => void) | undefined;
-    if (isPrahlad) {
-      try {
-        const db = getDb();
-        unsub = onSnapshot(doc(db, 'doctor_profile', 'main'), (snap) => {
-          if (snap.exists()) {
-            const data = snap.data();
-            setLiveDoctorProfile(data);
-            if (data?.photoUrl) {
-              setLiveDoctorPhoto(data.photoUrl);
-            }
-          }
-        }, (err) => console.warn('Live doctor profile snap:', err));
-      } catch (e) {}
-    }
-
-    return () => {
-      window.removeEventListener('storage', handleStorage);
-      if (unsub) unsub();
-    };
-  }, [isPrahlad]);
-
-  // Find dynamic provider from CMS or fallback with flexible ID matching
-  const dynamicProvider = useMemo(() => {
-    return providers.find(p => 
-      p.slug === slug || 
-      p.id === slug || 
-      p.slug === normalizedSlug || 
-      p.id === normalizedSlug ||
-      (isPrahlad && (
-        p.id === 'dr-prahlad-gadhvi' || 
-        p.id === 'dr-prahlad-gadhavi' || 
-        p.slug === 'dr-prahlad-gadhvi' || 
-        p.slug === 'dr-prahlad-gadhavi' || 
-        p.name?.toLowerCase().includes('prahlad')
-      ))
-    ) || null;
-  }, [providers, slug, normalizedSlug, isPrahlad]);
-
-  const defaultDoctor = DEFAULT_DOCTOR_DATA[normalizedSlug] || DEFAULT_DOCTOR_DATA['dr-prahlad-gadhavi'];
-
-  // Final doctor data merged with CMS and live photo
-  const doctor: DoctorDetailData = useMemo(() => {
-    const cmsSiteMediaUrl = getMediaUrl('providers', 'doctors', normalizedSlug) ||
-      getMediaUrl('providers', 'doctors', (slug || '').replace('dr-', '')) ||
-      getMediaUrl('providers', 'doctors', slug || '') ||
-      getMediaUrl('providers', normalizedSlug, 'portrait') ||
-      getMediaUrl('providers', slug || '', 'portrait') ||
-      getMediaUrl('providers', (slug || '').replace('dr-', ''), 'portrait');
-
-    const effectivePhoto = 
-      cmsSiteMediaUrl ||
-      dynamicProvider?.photoUrl || 
-      dynamicProvider?.imageUrl || 
-      dynamicProvider?.image ||
-      (isPrahlad ? (liveDoctorPhoto || liveDoctorProfile?.photoUrl) : undefined) ||
-      defaultDoctor.image;
-
-    if (dynamicProvider) {
-      return {
-        name: (isPrahlad && liveDoctorProfile?.name) || dynamicProvider.name || defaultDoctor.name,
-        role: (isPrahlad && liveDoctorProfile?.designation) || dynamicProvider.title || dynamicProvider.role || defaultDoctor.role,
-        image: effectivePhoto,
-        experience: dynamicProvider.experienceYears ? `${dynamicProvider.experienceYears} years` : defaultDoctor.experience,
-        qualifications: (isPrahlad && liveDoctorProfile?.qualification) || dynamicProvider.credentials || defaultDoctor.qualifications,
-        location: (isPrahlad && liveDoctorProfile?.clinicAddress) || defaultDoctor.location,
-        phone: (isPrahlad && liveDoctorProfile?.phone) || dynamicProvider.phone || defaultDoctor.phone,
-        email: (isPrahlad && liveDoctorProfile?.email) || dynamicProvider.email || defaultDoctor.email,
-        about: (isPrahlad && liveDoctorProfile?.biography) || dynamicProvider.fullBio || dynamicProvider.bio || defaultDoctor.about,
-        experienceDetail: defaultDoctor.experienceDetail,
-        specialities: dynamicProvider.specialties && dynamicProvider.specialties.length > 0 
-          ? dynamicProvider.specialties 
-          : ((isPrahlad && liveDoctorProfile?.expertise) || defaultDoctor.specialities)
-      };
-    }
-
-    return {
-      ...defaultDoctor,
-      name: (isPrahlad && liveDoctorProfile?.name) || defaultDoctor.name,
-      role: (isPrahlad && liveDoctorProfile?.designation) || defaultDoctor.role,
-      image: effectivePhoto,
-      qualifications: (isPrahlad && liveDoctorProfile?.qualification) || defaultDoctor.qualifications,
-      about: (isPrahlad && liveDoctorProfile?.biography) || defaultDoctor.about,
-      location: (isPrahlad && liveDoctorProfile?.clinicAddress) || defaultDoctor.location,
-      phone: (isPrahlad && liveDoctorProfile?.phone) || defaultDoctor.phone,
-      email: (isPrahlad && liveDoctorProfile?.email) || defaultDoctor.email,
-      specialities: (isPrahlad && liveDoctorProfile?.expertise) || defaultDoctor.specialities
-    };
-  }, [dynamicProvider, defaultDoctor, isPrahlad, liveDoctorPhoto, liveDoctorProfile]);
-
-  if (!doctor) {
+  if (!provider) {
     return <Navigate to="/providers" replace />;
   }
 
-  const breadcrumbs = [
-    { name: 'Home', url: '/' },
-    { name: 'Providers', url: '/providers' },
-    { name: doctor.name, url: `/providers/${slug}` }
-  ];
+  const imageUrl = provider.imageUrl || PLACEHOLDER_IMAGE;
+  const role = provider.designation || provider.title || 'Physician';
+  const experience = provider.experienceYears ? `${provider.experienceYears}+ years` : '';
+  const qualifications = provider.credentials || '';
+  const bio = provider.fullBio || provider.bio || '';
+  const location = '337 Bloomfield Avenue, Newark, NJ 07107'; // Canonical location
+  const phone = provider.phone || '(973) 412-9404';
+  const email = provider.email || 'medicalnewark@gmail.com';
+
+  let specialties: string[] = [];
+  if (Array.isArray(provider.specialties)) {
+    specialties = provider.specialties;
+  } else if (typeof provider.specialty === 'string' && provider.specialty.trim() !== '') {
+    specialties = [provider.specialty];
+  }
 
   return (
-    <div className="bg-white min-h-screen text-slate-800">
+    <div className="bg-[#FCFBF8] text-[#252A2B] min-h-screen pb-20">
       <SeoHead
-        title={`${doctor.name} - ${doctor.role} | Newark Medical Associates`}
-        description={`${doctor.name}, ${doctor.role} at Newark Medical Associates. ${doctor.experience} experience. Location: ${doctor.location}. Phone: ${doctor.phone}.`}
-        keywords={[
-          doctor.name,
-          `${doctor.name} Newark NJ`,
-          'doctor Newark NJ',
-          'primary care doctor Newark'
-        ]}
-        canonicalUrl={`https://newarkmed.com/providers/${slug}`}
-        breadcrumbs={breadcrumbs}
+        title={`${provider.name} | ${role} in Newark NJ`}
+        description={bio.slice(0, 150) + '...'}
+        canonicalUrl={`https://newarkmed.com/providers/${provider.slug || provider.id}`}
       />
 
-      {/* Top Main Profile Section */}
-      <section className="pt-28 pb-6 sm:pt-32 sm:pb-8">
-        <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-10 lg:gap-14 items-start">
-            
-            {/* Left Column: Doctor Photo */}
-            <div className="md:col-span-5 flex justify-start">
-              {(() => {
-                const mediaItem = getSiteMedia('providers', 'doctors', normalizedSlug) ||
-                  getSiteMedia('providers', 'doctors', (slug || '').replace('dr-', '')) ||
-                  getSiteMedia('providers', 'doctors', slug || '') ||
-                  getSiteMedia('providers', normalizedSlug, 'portrait') ||
-                  getSiteMedia('providers', slug || '', 'portrait') ||
-                  getSiteMedia('providers', (slug || '').replace('dr-', ''), 'portrait');
-                return (
-                  <div className="w-full max-w-[360px] sm:max-w-[380px] aspect-[4/4.3] rounded-[26px] sm:rounded-[28px] overflow-hidden bg-slate-100 shadow-xs border border-slate-200/80">
-                    <img
-                      src={doctor.image}
-                      alt={`${doctor.name} - ${doctor.role}`}
-                      className="w-full h-full"
-                      style={{
-                        objectFit: (mediaItem?.objectFit as any) || 'cover',
-                        objectPosition: mediaItem?.position || 'top'
-                      }}
-                      referrerPolicy="no-referrer"
-                      onError={(e) => {
-                        const img = e.currentTarget;
-                        if (img.src !== defaultDoctor.image) {
-                          img.src = defaultDoctor.image;
-                        }
-                      }}
-                    />
-                  </div>
-                );
-              })()}
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 pt-12 lg:pt-20">
+        
+        {/* Back Link */}
+        <div className="mb-8 lg:mb-12">
+          <Link
+            to="/providers"
+            className="inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-[#5A6264] hover:text-[#315B52] transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Back to All Providers
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20">
+          
+          {/* Left Column: Photo & Contact Box */}
+          <div className="lg:col-span-5">
+            <div className="relative aspect-[4/5] bg-[#F4EFE6] border border-[#D9D0C5] mb-8 shadow-editorial overflow-hidden">
+              <img
+                src={imageUrl}
+                alt={provider.name}
+                className="w-full h-full object-cover object-top filter grayscale-[12%]"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = PLACEHOLDER_IMAGE;
+                }}
+              />
             </div>
 
-            {/* Right Column: Name, Title & Key-Value Details */}
-            <div className="md:col-span-7">
-              <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-semibold text-slate-900 tracking-tight leading-tight">
-                {doctor.name}
-              </h1>
-
-              <p className="text-slate-500 text-base sm:text-lg font-normal mt-1.5 mb-6">
-                {doctor.role}
-              </p>
-
-              {/* Top Divider */}
-              <div className="border-t border-slate-200/90 my-6" />
-
-              {/* Two-Column Details Grid */}
-              <div className="space-y-4 text-sm sm:text-[15px]">
-                <div className="grid grid-cols-12 gap-4 items-baseline">
-                  <span className="col-span-4 sm:col-span-3 text-slate-900 font-normal">
-                    Experience
-                  </span>
-                  <span className="col-span-8 sm:col-span-9 text-slate-600 font-normal">
-                    {doctor.experience}
-                  </span>
+            <div className="bg-white p-8 border border-[#D9D0C5] shadow-sm">
+              <h3 className="font-serif text-[24px] text-[#0B1F2A] mb-6">Contact &amp; Scheduling</h3>
+              
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <MapPin className="text-[#B39A68] mt-1 flex-shrink-0" size={20} />
+                  <div>
+                    <p className="text-[14px] font-bold text-[#0B1F2A] mb-1">Primary Location</p>
+                    <p className="text-[15px] text-[#5A6264] leading-relaxed">
+                      {location}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-12 gap-4 items-baseline">
-                  <span className="col-span-4 sm:col-span-3 text-slate-900 font-normal">
-                    Qualifications
-                  </span>
-                  <span className="col-span-8 sm:col-span-9 text-slate-600 font-normal">
-                    {doctor.qualifications}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-12 gap-4 items-baseline">
-                  <span className="col-span-4 sm:col-span-3 text-slate-900 font-normal">
-                    Location
-                  </span>
-                  <span className="col-span-8 sm:col-span-9 text-slate-600 font-normal">
-                    {doctor.location}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-12 gap-4 items-baseline">
-                  <span className="col-span-4 sm:col-span-3 text-slate-900 font-normal">
-                    Phone No.
-                  </span>
-                  <span className="col-span-8 sm:col-span-9 text-slate-600 font-normal">
-                    <a 
-                      href={`tel:${doctor.phone.replace(/[^0-9]/g, '')}`} 
-                      className="hover:text-blue-600 transition-colors"
-                    >
-                      {doctor.phone}
-                    </a>
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-12 gap-4 items-baseline">
-                  <span className="col-span-4 sm:col-span-3 text-slate-900 font-normal">
-                    Email Id
-                  </span>
-                  <span className="col-span-8 sm:col-span-9 text-slate-600 font-normal">
-                    <a 
-                      href={`mailto:${doctor.email}`} 
-                      className="hover:text-blue-600 transition-colors"
-                    >
-                      {doctor.email}
-                    </a>
-                  </span>
+                <div className="flex items-start gap-4">
+                  <Mail className="text-[#B39A68] mt-1 flex-shrink-0" size={20} />
+                  <div>
+                    <p className="text-[14px] font-bold text-[#0B1F2A] mb-1">Direct Contact</p>
+                    <p className="text-[15px] text-[#5A6264]">{phone}</p>
+                    <p className="text-[15px] text-[#5A6264]">{email}</p>
+                  </div>
                 </div>
               </div>
 
-              {/* Bottom Divider */}
-              <div className="border-t border-slate-200/90 my-6" />
+              <div className="mt-8 pt-8 border-t border-[#D9D0C5]">
+                <Link
+                  to="/appointments"
+                  className="flex items-center justify-center w-full py-4 bg-[#0B1F2A] hover:bg-[#153444] text-white text-[13px] font-bold uppercase tracking-wider transition-colors"
+                >
+                  Book Appointment
+                </Link>
+              </div>
             </div>
-
           </div>
-        </div>
-      </section>
 
-      {/* Narrative Bio & Clinical Sections */}
-      <section className="py-6 sm:py-8">
-        <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12 space-y-10 sm:space-y-12">
-          
-          {/* About Section */}
-          <div className="space-y-3">
-            <h2 className="text-2xl sm:text-[26px] font-semibold text-slate-900 tracking-tight">
-              About:
-            </h2>
-            <p className="text-slate-600 leading-relaxed text-base sm:text-[17px] font-normal max-w-4xl">
-              {doctor.about}
+          {/* Right Column: Bio & Details */}
+          <div className="lg:col-span-7 pt-4 lg:pt-0">
+            <p className="text-[13px] uppercase font-bold tracking-[0.2em] text-[#B39A68] mb-3">
+              {role}
             </p>
-          </div>
-
-          {/* Experience Section */}
-          <div className="space-y-3">
-            <h2 className="text-2xl sm:text-[26px] font-semibold text-slate-900 tracking-tight">
-              Experience:
-            </h2>
-            <p className="text-slate-600 leading-relaxed text-base sm:text-[17px] font-normal max-w-4xl">
-              {doctor.experienceDetail}
-            </p>
-          </div>
-
-          {/* Specialities Section */}
-          <div className="space-y-3">
-            <h2 className="text-2xl sm:text-[26px] font-semibold text-slate-900 tracking-tight">
-              Specialities
-            </h2>
-            <div className="text-slate-600 leading-relaxed text-base sm:text-[17px] font-normal space-y-2 max-w-4xl">
-              {doctor.specialities.map((item, idx) => (
-                <p key={idx}>
-                  {idx === 0 ? item : `- ${item}`}
-                </p>
-              ))}
+            <h1 className="font-serif text-[42px] sm:text-[52px] text-[#0B1F2A] leading-[1.05] mb-6">
+              {provider.name}
+            </h1>
+            
+            <div className="flex flex-wrap gap-4 text-[14px] font-semibold text-[#5A6264] mb-10 pb-10 border-b border-[#D9D0C5]">
+              {qualifications && <span>{qualifications}</span>}
+              {qualifications && experience && <span className="text-[#D9D0C5]">|</span>}
+              {experience && <span>{experience} Experience</span>}
             </div>
+
+            <div className="prose prose-lg prose-p:text-[#5A6264] prose-p:leading-[1.8] prose-p:text-[17px] max-w-none mb-12 whitespace-pre-wrap">
+              {bio}
+            </div>
+
+            {specialties.length > 0 && (
+              <div className="bg-[#F4EFE6] p-8 lg:p-10 border border-[#D9D0C5]">
+                <h3 className="font-serif text-[28px] text-[#0B1F2A] mb-6">
+                  Clinical Specialties
+                </h3>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {specialties.map((spec, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <div className="mt-2 w-1.5 h-1.5 bg-[#B39A68] rounded-full flex-shrink-0" />
+                      <span className="text-[16px] text-[#5A6264] leading-snug">{spec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
         </div>
-      </section>
-
-      {/* Bottom Blue Contact Banner matching screenshot */}
-      <section className="bg-[#2563eb] text-white py-14 sm:py-16 px-6 sm:px-8 lg:px-12 mt-16 sm:mt-20">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-8">
-          <div className="max-w-md">
-            <div className="flex items-center gap-2 text-white/90 text-sm font-medium mb-3">
-              <span className="w-1.5 h-1.5 rounded-full bg-white inline-block"></span>
-              <span>Contact</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl md:text-[40px] font-bold text-white tracking-tight leading-[1.2]">
-              Contact us for more information & get started
-            </h2>
-          </div>
-
-          <div className="space-y-4 text-white text-base sm:text-[17px]">
-            <a 
-              href={`mailto:${doctor.email}`} 
-              className="flex items-center gap-3.5 hover:text-white/90 transition-colors"
-            >
-              <Mail size={22} className="shrink-0 text-white" />
-              <span>{doctor.email}</span>
-            </a>
-            <div className="flex items-center gap-3.5">
-              <MapPin size={22} className="shrink-0 text-white" />
-              <span>{doctor.location}</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      </div>
     </div>
   );
 }

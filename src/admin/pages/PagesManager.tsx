@@ -23,7 +23,7 @@ const WEBSITE_PAGES: PageMeta[] = [
     category: 'Core Pages',
     status: 'Dynamic Live',
     lastEdited: 'Synced with CMS',
-    desc: 'Hero banner, provider highlights, clinical statistics, FAQ, and booking CTA.'
+    desc: 'Hero banner, provider highlights, clinical statistics, process roadmap, and booking CTA.'
   },
   {
     title: 'About the Practice & Dr. Gadhvi',
@@ -42,6 +42,15 @@ const WEBSITE_PAGES: PageMeta[] = [
     status: 'Dynamic Live',
     lastEdited: 'Synced with CMS',
     desc: 'Catalog of primary care, chronic condition mitigation, preventive exams, and labs.'
+  },
+  {
+    title: 'Onsite Diagnostics & Lab Bay',
+    path: '/diagnostics',
+    editRoute: '/admin/pages/diagnostics',
+    category: 'Clinical & Diagnostic',
+    status: 'Dynamic Live',
+    lastEdited: 'Synced with CMS',
+    desc: 'EKG, ultrasound, diabetic HbA1c testing, lipid panels, and rapid in-office assays.'
   },
   {
     title: 'Patient Journey & Process',
@@ -135,75 +144,6 @@ export default function PagesManager() {
             Overview of all published pages, content modules, and instant links to their dedicated CMS editors.
           </p>
         </div>
-      </div>
-
-      {/* Quick Access Page Editors Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Link
-          to="/admin/pages/home"
-          className="p-4 bg-white rounded-2xl border border-slate-200 hover:border-primary-500 hover:shadow-md transition-all group flex flex-col items-center text-center"
-        >
-          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center mb-2 group-hover:bg-primary-600 group-hover:text-white transition-colors">
-            <FileText size={18} />
-          </div>
-          <span className="text-xs font-bold text-slate-800 group-hover:text-primary-700">Homepage</span>
-          <span className="text-[10px] text-slate-400 mt-0.5">Hero & Sections</span>
-        </Link>
-
-        <Link
-          to="/admin/pages/about"
-          className="p-4 bg-white rounded-2xl border border-slate-200 hover:border-primary-500 hover:shadow-md transition-all group flex flex-col items-center text-center"
-        >
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-            <Compass size={18} />
-          </div>
-          <span className="text-xs font-bold text-slate-800 group-hover:text-blue-700">About Practice</span>
-          <span className="text-[10px] text-slate-400 mt-0.5">Mission & History</span>
-        </Link>
-
-        <Link
-          to="/admin/services"
-          className="p-4 bg-white rounded-2xl border border-slate-200 hover:border-primary-500 hover:shadow-md transition-all group flex flex-col items-center text-center"
-        >
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-            <Activity size={18} />
-          </div>
-          <span className="text-xs font-bold text-slate-800 group-hover:text-emerald-700">Services</span>
-          <span className="text-[10px] text-slate-400 mt-0.5">Clinical Catalog</span>
-        </Link>
-
-        <Link
-          to="/admin/pages/diagnostics"
-          className="p-4 bg-white rounded-2xl border border-slate-200 hover:border-primary-500 hover:shadow-md transition-all group flex flex-col items-center text-center"
-        >
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-2 group-hover:bg-amber-600 group-hover:text-white transition-colors">
-            <Activity size={18} />
-          </div>
-          <span className="text-xs font-bold text-slate-800 group-hover:text-amber-700">Diagnostics</span>
-          <span className="text-[10px] text-slate-400 mt-0.5">Ultrasound & EKG</span>
-        </Link>
-
-        <Link
-          to="/admin/pages/contact"
-          className="p-4 bg-white rounded-2xl border border-slate-200 hover:border-primary-500 hover:shadow-md transition-all group flex flex-col items-center text-center"
-        >
-          <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-2 group-hover:bg-purple-600 group-hover:text-white transition-colors">
-            <Phone size={18} />
-          </div>
-          <span className="text-xs font-bold text-slate-800 group-hover:text-purple-700">Contact Page</span>
-          <span className="text-[10px] text-slate-400 mt-0.5">Hours & Location</span>
-        </Link>
-
-        <Link
-          to="/admin/popups"
-          className="p-4 bg-white rounded-2xl border border-slate-200 hover:border-primary-500 hover:shadow-md transition-all group flex flex-col items-center text-center"
-        >
-          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-2 group-hover:bg-rose-600 group-hover:text-white transition-colors">
-            <Shield size={18} />
-          </div>
-          <span className="text-xs font-bold text-slate-800 group-hover:text-rose-700">Popups & Alerts</span>
-          <span className="text-[10px] text-slate-400 mt-0.5">Announcements</span>
-        </Link>
       </div>
 
       {/* Search & Filter */}

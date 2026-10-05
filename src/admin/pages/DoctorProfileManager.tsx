@@ -6,8 +6,7 @@ import {
   FileCheck, Shield, RotateCcw, Loader2
 } from 'lucide-react';
 import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { getDb, storage, auth } from '../../lib/firebase';
+import { getDb } from '../../lib/firebase';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { useCmsData } from '../../context/CmsContext';
 import { logAdminActivity } from '../utils/auditLogger';
@@ -199,122 +198,61 @@ export default function DoctorProfileManager() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setUploadError('Only JPG, PNG, and WebP images are accepted.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('File exceeds 5 MB limit.');
+      return;
+    }
+
     setIsUploading(true);
-    setUploadProgress(10);
+    setUploadProgress(20);
     setUploadError(null);
 
-    // Log Firebase auth state for debugging
-    const currentUser = auth.currentUser;
-    console.log('Firebase authenticated user:', currentUser?.uid || 'none (anonymous)');
-    console.log('Firebase project:', auth.app.options.projectId);
-    console.log('Uploading for provider: dr-prahlad-gadhvi');
-
-    // Compress image on a canvas (used for both Firebase Storage and fallback)
-    const compressImage = (file: File): Promise<{ blob: Blob; dataUrl: string }> => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const maxDim = 800;
-            let width = img.width;
-            let height = img.height;
-            if (width > maxDim || height > maxDim) {
-              if (width > height) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-              } else {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
-              }
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, width, height);
-            }
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-            canvas.toBlob((blob) => {
-              if (blob) {
-                resolve({ blob, dataUrl });
-              } else {
-                resolve({ blob: new Blob(), dataUrl });
-              }
-            }, 'image/jpeg', 0.85);
-          };
-          img.onerror = () => reject(new Error('Failed to load image'));
-          img.src = ev.target?.result as string;
-        };
-        reader.onerror = () => reject(new Error('Failed to read file'));
-        reader.readAsDataURL(file);
-      });
-    };
-
     try {
-      const { blob: compressedBlob, dataUrl: compressedDataUrl } = await compressImage(file);
-      setUploadProgress(30);
+      const formData = new FormData();
+      formData.append('file', file);
 
-      // Try Firebase Storage upload with the compressed blob
-      const fileId = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      const storagePath = `doctor-images/dr-prahlad-gadhvi/${fileId}.jpg`;
-      console.log('Storage path:', storagePath);
-      
-      const storageRef = ref(storage, storagePath);
-      
-      try {
-        const uploadTask = uploadBytesResumable(storageRef, compressedBlob, {
-          contentType: 'image/jpeg'
-        });
+      setUploadProgress(50);
+      const res = await fetch('/.netlify/functions/upload-provider-image?providerId=dr-prahlad-gadhvi', {
+        method: 'POST',
+        body: formData,
+      });
 
-        uploadTask.on(
-          'state_changed',
-          (snapshot) => {
-            const progress = 30 + Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 60);
-            setUploadProgress(progress);
-          },
-          (error) => {
-            // Firebase Storage failed (likely 403 — storage rules not deployed)
-            console.warn('Firebase Storage upload failed (using compressed base64 fallback):', error.code, error.message);
-            
-            // Use the compressed data URL directly — it's already small enough for Firestore
-            setProfile((prev) => ({ ...prev, photoUrl: compressedDataUrl }));
-            setUploadProgress(100);
-            setIsUploading(false);
-            setUploadError(null);
-            setToastMessage('Photo updated locally. Click "Save & Publish" to persist.');
-            setTimeout(() => setToastMessage(null), 4000);
-          },
-          async () => {
-            try {
-              const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-              console.log('Upload completed. Download URL:', downloadUrl);
-              
-              // Update profile with Firebase Storage URL
-              setProfile((prev) => ({ ...prev, photoUrl: downloadUrl }));
-              setUploadProgress(100);
-              setIsUploading(false);
-              setUploadError(null);
-              setToastMessage('Photo uploaded to Firebase Storage. Click "Save & Publish" to persist.');
-              setTimeout(() => setToastMessage(null), 4000);
-            } catch (urlErr) {
-              console.warn('getDownloadURL failed, using compressed base64:', urlErr);
-              setProfile((prev) => ({ ...prev, photoUrl: compressedDataUrl }));
-              setUploadProgress(100);
-              setIsUploading(false);
-            }
-          }
-        );
-      } catch (storageInitErr) {
-        console.warn('Storage init failed, using compressed base64:', storageInitErr);
-        setProfile((prev) => ({ ...prev, photoUrl: compressedDataUrl }));
-        setUploadProgress(100);
-        setIsUploading(false);
+      setUploadProgress(85);
+      const json = await res.json();
+      if (!res.ok || !json.imageUrl) {
+        throw new Error(json.error || `Upload failed (HTTP ${res.status})`);
       }
+
+      setProfile(prev => ({ ...prev, photoUrl: json.imageUrl }));
+
+      // Also register in media_library in Firestore
+      try {
+        const db = getDb();
+        await addDoc(collection(db, 'media_library'), {
+          name: file.name,
+          url: json.imageUrl,
+          size: file.size,
+          type: file.type,
+          altText: profile.name,
+          source: 'r2',
+          createdAt: serverTimestamp(),
+        });
+      } catch (e) {
+        console.warn('Failed to add to media_library:', e);
+      }
+
+      setUploadProgress(100);
+      setIsUploading(false);
+      setToastMessage('Photo uploaded to Cloudflare R2! Click "Save & Publish" to persist.');
+      setTimeout(() => setToastMessage(null), 4000);
     } catch (err: any) {
-      console.error('Image processing error:', err);
-      setUploadError('Failed to process image: ' + (err.message || 'Unknown error'));
+      console.error('Doctor photo upload error:', err);
+      setUploadError(err.message || 'Failed to upload image to Cloudflare R2.');
       setIsUploading(false);
       setUploadProgress(null);
     }

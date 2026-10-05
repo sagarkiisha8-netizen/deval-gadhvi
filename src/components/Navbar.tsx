@@ -49,12 +49,12 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 left-0 right-0 z-50 w-full transition-shadow duration-300">
       {/* TOP UTILITY BAR: Midnight Navy */}
-      <div className="bg-[#0B1F2A] text-[#D9D0C5] h-[30px] px-4 sm:px-6 lg:px-7 flex items-center justify-between text-[11.5px] sm:text-[12px] font-medium tracking-wide border-b border-[#0B1F2A]/60">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#B39A68] animate-pulse shrink-0" />
+      <div className="bg-[#0B1F2A] text-[#D9D0C5] min-h-[36px] py-1 px-4 sm:px-8 flex items-center justify-between text-[12.5px] sm:text-[13px] font-medium tracking-wide border-b border-[#0B1F2A]/60">
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#B39A68] animate-pulse" />
           <span className="truncate">Newark, New Jersey</span>
-          <span className="hidden sm:inline text-[#B39A68]/60 shrink-0">•</span>
-          <span className="hidden sm:inline text-[#D9D0C5]/80 truncate">337 Bloomfield Ave</span>
+          <span className="hidden sm:inline text-[#B39A68]/60">•</span>
+          <span className="hidden sm:inline text-[#D9D0C5]/80">337 Bloomfield Ave</span>
         </div>
         <div>
           <a
@@ -70,7 +70,7 @@ export default function Navbar() {
 
       {/* MAIN HEADER: Warm Ivory (#F4EFE6), Responsive Height */}
       <div
-        className={`bg-[#F4EFE6] border-b border-[#D9D0C5]/70 h-[76px] sm:h-[80px] md:h-[82px] px-4 sm:px-6 lg:px-7 flex items-center justify-between transition-all duration-300 ${
+        className={`bg-[#F4EFE6] border-b border-[#D9D0C5]/70 h-[76px] sm:h-[84px] md:h-[92px] px-4 sm:px-8 lg:px-12 flex items-center justify-between transition-all duration-300 ${
           scrolled ? 'shadow-md backdrop-blur-md bg-[#F4EFE6]/98' : ''
         }`}
       >
@@ -141,7 +141,7 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="lg:hidden fixed inset-x-0 top-[106px] sm:top-[110px] md:top-[112px] bottom-0 bg-[#F4EFE6] z-50 flex flex-col justify-between p-6 sm:p-8 overflow-y-auto border-t border-[#D9D0C5] shadow-2xl"
+            className="lg:hidden fixed inset-x-0 top-[112px] sm:top-[120px] md:top-[128px] bottom-0 bg-[#F4EFE6] z-50 flex flex-col justify-between p-6 sm:p-8 overflow-y-auto border-t border-[#D9D0C5] shadow-2xl"
           >
             <nav className="flex flex-col gap-1 pt-2">
               {navLinks.map((link, idx) => (

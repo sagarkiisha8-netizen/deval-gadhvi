@@ -4,14 +4,13 @@ import {
   Search, Calendar, Clock, ArrowRight, X, BookOpen, ShieldCheck 
 } from 'lucide-react';
 import { useCmsData } from '../context/CmsContext';
-import { getAuthorAvatar } from '../utils/providerImages';
 import SeoHead from '../components/SeoHead';
 
 const INITIAL_PAGE_SIZE = 9;
 const PAGE_INCREMENT = 6;
 
 export default function BlogArchivePage() {
-  const { blogs, blogCategories, blogAuthors, providers, siteSettings, loading, trackPageView, getMediaUrl } = useCmsData();
+  const { blogs, blogCategories, siteSettings, loading, trackPageView, getMediaUrl } = useCmsData();
   const [searchParams, setSearchParams] = useSearchParams();
   
   const initialCategory = searchParams.get('category') || 'all';
@@ -224,11 +223,9 @@ export default function BlogArchivePage() {
                 </p>
 
                 <div className="flex items-center justify-between pt-4 border-t border-[#D9D0C5]">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[13.5px] text-[#252A2B] font-semibold">
-                      By {featuredArticle.author}
-                    </span>
-                  </div>
+                  <span className="text-[13.5px] text-[#252A2B] font-semibold">
+                    By {featuredArticle.author}
+                  </span>
 
                   <Link
                     to={`/blog/${featuredArticle.slug}`}
@@ -290,11 +287,9 @@ export default function BlogArchivePage() {
                 </div>
 
                 <div className="pt-4 border-t border-[#D9D0C5]/60 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[12.5px] text-[#5A6264] font-medium">
-                      {article.author}
-                    </span>
-                  </div>
+                  <span className="text-[12.5px] text-[#5A6264]">
+                    {article.author}
+                  </span>
 
                   <Link
                     to={`/blog/${article.slug}`}

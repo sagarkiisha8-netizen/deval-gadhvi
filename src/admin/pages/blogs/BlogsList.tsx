@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { useCmsData } from '../../../context/CmsContext';
 import { BlogPost } from '../../../types';
-import { getAuthorAvatar } from '../../../utils/providerImages';
 import BlogCategoriesModal from '../../components/BlogCategoriesModal';
 import BlogAuthorsModal from '../../components/BlogAuthorsModal';
 import BlogTagsModal from '../../components/BlogTagsModal';
@@ -17,7 +16,7 @@ import DeleteBlogConfirmModal from '../../components/DeleteBlogConfirmModal';
 
 export default function BlogsList() {
   const navigate = useNavigate();
-  const { blogs, blogCategories, blogAuthors, blogTags, providers, deleteBlog, duplicateBlog, updateBlog } = useCmsData();
+  const { blogs, blogCategories, blogAuthors, blogTags, deleteBlog, duplicateBlog, updateBlog } = useCmsData();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft' | 'scheduled' | 'archived'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -375,15 +374,10 @@ export default function BlogsList() {
 
                       {/* Author & Date metadata */}
                       <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 pt-1">
-                        <div className="flex items-center gap-1.5 text-slate-700 font-semibold">
-                          <img 
-                            src={getAuthorAvatar(blog.author, providers, blogAuthors)} 
-                            alt={blog.author} 
-                            className="w-5 h-5 rounded-full object-cover border border-slate-300 shadow-2xs shrink-0" 
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800';
-                            }}
-                          />
+                        <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+                          {blog.authorAvatar ? (
+                            <img src={blog.authorAvatar} alt={blog.author} className="w-4 h-4 rounded-full object-cover" />
+                          ) : null}
                           <span>{blog.author}</span>
                         </div>
                         <span>•</span>

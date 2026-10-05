@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Calendar as CalendarIcon, Users, Settings, 
   Search, FileText, Menu, X, Inbox, HeartPulse, Activity,
   LineChart, LogOut, FileImage, ShieldCheck, ExternalLink,
-  HelpCircle, Compass, Sliders, ChevronDown,
+  HelpCircle, MessageSquareQuote, Compass, Sliders, ChevronDown,
   BookOpen, UserCheck, Stethoscope, MapPin, Image as ImageIcon,
   Bell, History, FolderKanban, Layers, Tag, PenSquare
 } from 'lucide-react';
@@ -16,38 +16,70 @@ interface NavGroup {
     name: string;
     path: string;
     icon: React.ComponentType<{ size?: number; className?: string }>;
-    badge?: string;
   }[];
 }
 
 const SIDEBAR_GROUPS: NavGroup[] = [
   {
-    groupTitle: 'Clinic Hub',
+    groupTitle: 'Clinic Operations',
     items: [
       { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
       { name: 'Appointments', path: '/admin/appointments', icon: CalendarIcon },
-      { name: 'Patient Leads', path: '/admin/leads', icon: Inbox },
+      { name: 'Calendar View', path: '/admin/calendar', icon: CalendarIcon },
+      { name: 'Patient Inquiries', path: '/admin/leads', icon: Inbox },
     ]
   },
   {
-    groupTitle: 'Doctors & Clinical',
+    groupTitle: 'Doctor & Clinical Content',
     items: [
-      { name: 'Physicians & Doctors', path: '/admin/providers', icon: UserCheck, badge: 'Main' },
+      { name: 'Doctor Profile', path: '/admin/doctor-profile', icon: UserCheck },
+      { name: 'Conditions & Treatments', path: '/admin/conditions', icon: Stethoscope },
       { name: 'Clinical Services', path: '/admin/services', icon: Activity },
+      { name: 'Patient FAQs', path: '/admin/faqs', icon: HelpCircle },
+      { name: 'Clinic Locations', path: '/admin/locations', icon: MapPin },
+      { name: 'Media & Awards Gallery', path: '/admin/gallery', icon: ImageIcon },
     ]
   },
   {
-    groupTitle: 'Website Content',
+    groupTitle: 'Blog & Patient Education',
     items: [
-      { name: 'Page Sections', path: '/admin/page-directory', icon: FolderKanban },
-      { name: 'Website Photos', path: '/admin/media-manager', icon: FileImage },
-      { name: 'Patient Blogs', path: '/admin/blogs', icon: BookOpen },
+      { name: 'All Blog Articles', path: '/admin/blogs', icon: BookOpen },
+      { name: 'Write New Post', path: '/admin/blogs/new', icon: PenSquare },
+      { name: 'Medical Authors', path: '/admin/blog-authors', icon: UserCheck },
+      { name: 'Categories', path: '/admin/blog-categories', icon: Layers },
+      { name: 'Tags', path: '/admin/blog-tags', icon: Tag },
     ]
   },
   {
-    groupTitle: 'Settings',
+    groupTitle: 'Website CMS & Pages',
     items: [
+      { name: 'All Pages Directory', path: '/admin/page-directory', icon: FolderKanban },
+      { name: 'Homepage Editor', path: '/admin/pages/home', icon: FileText },
+      { name: 'About Practice', path: '/admin/pages/about', icon: FileText },
+      { name: 'Diagnostics Page', path: '/admin/pages/diagnostics', icon: FileText },
+      { name: 'Patient Journey', path: '/admin/pages/process', icon: Compass },
+      { name: 'Patient Reviews', path: '/admin/pages/testimonials', icon: MessageSquareQuote },
+      { name: 'Contact & Location', path: '/admin/pages/contact', icon: FileText },
+      { name: 'Popups & Alerts', path: '/admin/popups', icon: Bell },
+    ]
+  },
+  {
+    groupTitle: 'Website Media Control',
+    items: [
+      { name: 'Website Media Manager', path: '/admin/media-manager', icon: ImageIcon },
+      { name: 'Global Media Library', path: '/admin/media', icon: FileImage },
+      { name: 'Header Navigation', path: '/admin/layout/header', icon: Sliders },
+      { name: 'Footer Settings', path: '/admin/layout/footer', icon: Sliders },
+    ]
+  },
+  {
+    groupTitle: 'System & Security',
+    items: [
+      { name: 'SEO & Meta Tags', path: '/admin/seo', icon: Search },
+      { name: 'Traffic Analytics', path: '/admin/analytics', icon: LineChart },
       { name: 'Practice Settings', path: '/admin/settings', icon: Settings },
+      { name: 'Staff Users & Roles', path: '/admin/users', icon: ShieldCheck },
+      { name: 'Audit Trail & Logs', path: '/admin/audit-logs', icon: History },
     ]
   }
 ];
@@ -115,22 +147,15 @@ export default function AdminLayout() {
                     end={item.path === '/admin'}
                     onClick={() => setSidebarOpen(false)}
                     className={({ isActive }) =>
-                      `flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl transition-all ${
+                      `flex items-center px-3 py-2 text-xs font-semibold rounded-xl transition-all ${
                         isActive 
                           ? 'bg-primary-600 text-white shadow-sm' 
                           : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                       }`
                     }
                   >
-                    <div className="flex items-center min-w-0">
-                      <item.icon size={16} className="mr-3 flex-shrink-0" />
-                      <span className="truncate">{item.name}</span>
-                    </div>
-                    {item.badge && (
-                      <span className="ml-2 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-400 text-slate-950 uppercase tracking-wider">
-                        {item.badge}
-                      </span>
-                    )}
+                    <item.icon size={16} className="mr-3 flex-shrink-0" />
+                    <span className="truncate">{item.name}</span>
                   </NavLink>
                 ))}
               </nav>
@@ -180,23 +205,14 @@ export default function AdminLayout() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <Link
-              to="/admin/media-manager"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:text-primary-800 bg-primary-50 hover:bg-primary-100 border border-primary-200 px-3 py-1.5 rounded-xl transition-colors"
-              title="Manage Website Photos & Media"
+              to="/admin/blogs"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl transition-colors"
+              title="Manage Medical Blogs"
             >
-              <ImageIcon size={14} className="text-primary-600" />
-              <span className="hidden sm:inline">Website Photos</span>
-            </Link>
-
-            <Link
-              to="/admin/page-directory"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-1.5 rounded-xl transition-colors"
-              title="All Website Page CMS Editors"
-            >
-              <FolderKanban size={14} className="text-slate-500" />
-              <span className="hidden sm:inline">Page Editors</span>
+              <BookOpen size={14} className="text-emerald-600" />
+              <span>Blogs</span>
             </Link>
 
             <a
@@ -206,7 +222,7 @@ export default function AdminLayout() {
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition-colors"
             >
               <ExternalLink size={13} />
-              <span className="hidden md:inline">Preview Live</span>
+              <span className="hidden sm:inline">Preview Live Site</span>
             </a>
 
             <div className="h-4 w-px bg-slate-200" />

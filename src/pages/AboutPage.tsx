@@ -8,8 +8,9 @@ import { useCmsData } from '../context/CmsContext';
 
 export default function AboutPage() {
   const { aboutContent, getMediaUrl, getSiteMedia } = useCmsData();
-  const facilityMedia = getSiteMedia('about', 'facility', 'main');
+  const facilityMedia = getSiteMedia('about', 'facility', 'main') || getSiteMedia('about', 'facility', 'main-image');
   const facilityImage = getMediaUrl('about', 'facility', 'main') || 
+    getMediaUrl('about', 'facility', 'main-image') ||
     (aboutContent as any)?.facilityImageUrl || 
     (aboutContent as any)?.heroImage ||
     (aboutContent as any)?.mission?.imageUrl || 
@@ -265,6 +266,38 @@ export default function AboutPage() {
         </div>
       </section>
 
+      {/* 6. Call to Action */}
+      <section className="bg-[#0B1F2A] text-[#FCFBF8] py-16 sm:py-24">
+        <div className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-12 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-40px' }}
+            transition={{ duration: 0.6 }}
+          >
+            <h3 className="font-serif text-[30px] sm:text-[46px] lg:text-[56px] leading-[1.08] mb-4 sm:mb-6">
+              Experience primary care as it was meant to be.
+            </h3>
+            <p className="font-sans text-[15.5px] sm:text-[18px] text-[#D9D0C5] max-w-2xl mx-auto leading-[1.65] sm:leading-[1.7] mb-8 sm:mb-10">
+              Schedule an appointment at our 337 Bloomfield Ave clinic and meet physicians who take the time to know you.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4">
+              <Link
+                to="/appointments"
+                className="w-full sm:w-auto px-8 py-4 bg-[#B39A68] hover:bg-[#c4ab79] text-[#0B1F2A] font-bold uppercase tracking-wider text-[13.5px] sm:text-[14px] transition-colors min-h-[48px] flex items-center justify-center"
+              >
+                Book an Appointment
+              </Link>
+              <a
+                href={`tel:${NEWARK_PRACTICE_INFO.rawPhone}`}
+                className="w-full sm:w-auto px-7 py-4 border border-[#FCFBF8]/40 hover:border-[#FCFBF8] text-[#FCFBF8] font-semibold uppercase tracking-wider text-[13.5px] sm:text-[14px] transition-colors min-h-[48px] flex items-center justify-center"
+              >
+                Call (973) 412-9404
+              </a>
+            </div>
+          </motion.div>
+        </div>
+      </section>
     </div>
   );
 }

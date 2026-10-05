@@ -8,8 +8,7 @@ import {
   collection, onSnapshot, addDoc, deleteDoc, doc, 
   serverTimestamp, query, orderBy 
 } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
-import { getDb, storage } from '../../lib/firebase';
+import { getDb } from '../../lib/firebase';
 import { MediaItem } from '../../types';
 
 export default function MediaLibrary() {
@@ -123,138 +122,65 @@ export default function MediaLibrary() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setUploadError('Only JPG, PNG, and WebP images are accepted.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('File exceeds 5 MB limit.');
+      return;
+    }
+
     setIsUploading(true);
-    setUploadProgress(15);
+    setUploadProgress(20);
     setUploadError(null);
 
-    const fallbackToCompressedBase64 = () => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
-        const img = new Image();
-        img.onload = async () => {
-          try {
-            const canvas = document.createElement('canvas');
-            const maxDim = 800;
-            let width = img.width;
-            let height = img.height;
-            
-            if (width > maxDim || height > maxDim) {
-              if (width > height) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-              } else {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
-              }
-            }
-            
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, width, height);
-            }
-            
-            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            
-            const db = getDb();
-            const docRef = await addDoc(collection(db, 'media_library'), {
-              name: file.name,
-              url: compressedDataUrl,
-              size: Math.round(compressedDataUrl.length * 0.75),
-              type: 'image/jpeg',
-              altText: file.name.split('.')[0],
-              createdAt: serverTimestamp()
-            });
-            const newItem: MediaItem = {
-              id: docRef.id,
-              name: file.name,
-              url: compressedDataUrl,
-              size: Math.round(compressedDataUrl.length * 0.75),
-              type: 'image/jpeg',
-              altText: file.name.split('.')[0],
-              createdAt: new Date().toISOString()
-            };
-            setSelectedItem(newItem);
-            setIsUploading(false);
-            setUploadProgress(null);
-          } catch (fallbackErr: any) {
-            setUploadError('Failed to process image: ' + (fallbackErr.message || 'Unknown error'));
-            setIsUploading(false);
-          }
-        };
-        img.onerror = () => {
-          setUploadError('Failed to read image file');
-          setIsUploading(false);
-        };
-        img.src = dataUrl;
-      };
-      reader.onerror = () => {
-        setUploadError('Failed to read file');
-        setIsUploading(false);
-      };
-      reader.readAsDataURL(file);
-    };
-
     try {
-      const fileId = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      const storageRef = ref(storage, `media/${fileId}`);
-      
-      let uploadTask;
-      try {
-        uploadTask = uploadBytesResumable(storageRef, file);
-      } catch (storageErr) {
-        console.warn('Storage init failed, using fallback:', storageErr);
-        fallbackToCompressedBase64();
-        return;
+      const formData = new FormData();
+      formData.append('file', file);
+
+      setUploadProgress(50);
+      const res = await fetch('/.netlify/functions/upload-provider-image?providerId=media', {
+        method: 'POST',
+        body: formData,
+      });
+
+      setUploadProgress(85);
+      const json = await res.json();
+      if (!res.ok || !json.imageUrl) {
+        throw new Error(json.error || `Upload failed (HTTP ${res.status})`);
       }
 
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-          setUploadProgress(progress);
-        },
-        (err) => {
-          console.warn('Storage upload fallback to base64 DataURL:', err);
-          fallbackToCompressedBase64();
-        },
-        async () => {
-          try {
-            const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-            const db = getDb();
-            const docRef = await addDoc(collection(db, 'media_library'), {
-              name: file.name,
-              url: downloadUrl,
-              path: `media/${fileId}`,
-              size: file.size,
-              type: file.type,
-              altText: file.name.split('.')[0],
-              createdAt: serverTimestamp()
-            });
-            const newItem: MediaItem = {
-              id: docRef.id,
-              name: file.name,
-              url: downloadUrl,
-              path: `media/${fileId}`,
-              size: file.size,
-              type: file.type,
-              altText: file.name.split('.')[0],
-              createdAt: new Date().toISOString()
-            };
-            setSelectedItem(newItem);
-            setIsUploading(false);
-            setUploadProgress(null);
-          } catch (dbErr) {
-            console.warn('Failed to save to database or get download URL, using fallback:', dbErr);
-            fallbackToCompressedBase64();
-          }
-        }
-      );
+      const db = getDb();
+      const docRef = await addDoc(collection(db, 'media_library'), {
+        name: file.name,
+        url: json.imageUrl,
+        size: file.size,
+        type: file.type,
+        altText: file.name.split('.')[0],
+        source: 'r2',
+        createdAt: serverTimestamp()
+      });
+
+      const newItem: MediaItem = {
+        id: docRef.id,
+        name: file.name,
+        url: json.imageUrl,
+        size: file.size,
+        type: file.type,
+        altText: file.name.split('.')[0],
+        createdAt: new Date().toISOString()
+      };
+      setSelectedItem(newItem);
+      setUploadProgress(100);
+      setIsUploading(false);
+      setUploadProgress(null);
     } catch (err: any) {
       console.error('File upload exception:', err);
-      fallbackToCompressedBase64();
+      setUploadError(err.message || 'Failed to upload image to Cloudflare R2.');
+      setIsUploading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -269,11 +195,6 @@ export default function MediaLibrary() {
       const db = getDb();
       if (!item.id.startsWith('stock-')) {
         await deleteDoc(doc(db, 'media_library', item.id));
-        if (item.path) {
-          try {
-            await deleteObject(ref(storage, item.path));
-          } catch {}
-        }
       }
       setMediaItems(prev => prev.filter(i => i.id !== item.id));
       if (selectedItem?.id === item.id) {
@@ -306,7 +227,7 @@ export default function MediaLibrary() {
             <span>Upload Image</span>
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               onChange={handleFileUpload}
               disabled={isUploading}
               className="hidden"
@@ -321,7 +242,7 @@ export default function MediaLibrary() {
           <div className="flex items-center justify-between text-xs font-semibold text-slate-700 mb-2">
             <span className="flex items-center gap-2">
               <Loader2 size={14} className="animate-spin text-primary-600" />
-              <span>Uploading asset to Firebase Storage...</span>
+              <span>Uploading image to Cloudflare R2...</span>
             </span>
             <span>{uploadProgress || 10}%</span>
           </div>

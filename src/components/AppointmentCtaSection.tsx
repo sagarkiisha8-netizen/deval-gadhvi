@@ -7,8 +7,9 @@ import { useCmsData } from '../context/CmsContext';
 
 export default function AppointmentCtaSection() {
   const { getMediaUrl, getSiteMedia } = useCmsData();
-  const mediaItem = getSiteMedia('homepage', 'cta', 'featured');
-  const ctaImage = getMediaUrl('homepage', 'cta', 'featured') || 
+  const mediaItem = getSiteMedia('home', 'cta', 'featured-image') || getSiteMedia('home', 'cta', 'image');
+  const ctaImage = getMediaUrl('home', 'cta', 'featured-image') || 
+    getMediaUrl('home', 'cta', 'image') || 
     "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=85&w=1200";
 
   return (

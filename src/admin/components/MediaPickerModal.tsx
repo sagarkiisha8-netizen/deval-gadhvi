@@ -7,8 +7,7 @@ import {
   collection, onSnapshot, addDoc, serverTimestamp, 
   query, orderBy 
 } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { getDb, storage, auth } from '../../lib/firebase';
+import { getDb } from '../../lib/firebase';
 import { MediaItem } from '../../types';
 
 interface MediaPickerModalProps {
@@ -16,13 +15,15 @@ interface MediaPickerModalProps {
   onClose: () => void;
   onSelectImage: (imageUrl: string, altText?: string, caption?: string, credit?: string) => void;
   title?: string;
+  providerId?: string;
 }
 
 export default function MediaPickerModal({
   isOpen,
   onClose,
   onSelectImage,
-  title = 'Select or Upload Image'
+  title = 'Select or Upload Image',
+  providerId
 }: MediaPickerModalProps) {
   const [activeTab, setActiveTab] = useState<'gallery' | 'upload' | 'url'>('gallery');
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
@@ -151,126 +152,82 @@ export default function MediaPickerModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Client-side validation
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setUploadError('Only JPG, PNG, and WebP images are accepted.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('File exceeds the 5 MB limit.');
+      return;
+    }
+
     setIsUploading(true);
     setUploadProgress(10);
     setUploadError(null);
 
-    const fallbackToCompressedBase64 = () => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
-        const img = new Image();
-        img.onload = async () => {
-          try {
-            const canvas = document.createElement('canvas');
-            const maxDim = 800;
-            let width = img.width;
-            let height = img.height;
-            
-            if (width > maxDim || height > maxDim) {
-              if (width > height) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-              } else {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
-              }
-            }
-            
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, width, height);
-            }
-            
-            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            
-            const db = getDb();
-            await addDoc(collection(db, 'media_library'), {
-              name: file.name,
-              url: compressedDataUrl,
-              size: Math.round(compressedDataUrl.length * 0.75),
-              type: 'image/jpeg',
-              altText: file.name.split('.')[0],
-              createdAt: serverTimestamp()
-            });
-            
-            setSelectedUrl(compressedDataUrl);
-            setIsUploading(false);
-            setUploadProgress(null);
-            setActiveTab('gallery');
-          } catch (fallbackErr: any) {
-            setUploadError('Failed to process image: ' + (fallbackErr.message || 'Unknown error'));
-            setIsUploading(false);
-          }
-        };
-        img.onerror = () => {
-          setUploadError('Failed to read image file');
-          setIsUploading(false);
-        };
-        img.src = dataUrl;
-      };
-      reader.onerror = () => {
-        setUploadError('Failed to read file');
-        setIsUploading(false);
-      };
-      reader.readAsDataURL(file);
-    };
-
     try {
-      // Diagnostic logging for Firebase auth and storage debugging
-      console.log('Firebase authenticated user:', auth.currentUser?.uid || 'none (anonymous)');
-      console.log('Firebase storage bucket:', auth.app.options.storageBucket);
-      
-      const fileId = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      const storageRef = ref(storage, `media/${fileId}`);
-      
-      let uploadTask;
+      let finalUrl = '';
+      setUploadProgress(30);
+
       try {
-        uploadTask = uploadBytesResumable(storageRef, file);
-      } catch (storageErr) {
-        console.warn('Storage init failed, using fallback:', storageErr);
-        fallbackToCompressedBase64();
-        return;
-      }
-      
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-          setUploadProgress(progress);
-        },
-        (error) => {
-          console.warn('Storage bucket upload fallback to local data-url:', error);
-          fallbackToCompressedBase64();
-        },
-        async () => {
-          try {
-            const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-            const db = getDb();
-            await addDoc(collection(db, 'media_library'), {
-              name: file.name,
-              url: downloadUrl,
-              path: `media/${fileId}`,
-              size: file.size,
-              type: file.type,
-              altText: file.name.split('.')[0],
-              createdAt: serverTimestamp()
-            });
-            setSelectedUrl(downloadUrl);
-            setIsUploading(false);
-            setUploadProgress(null);
-            setActiveTab('gallery');
-          } catch (dbErr) {
-            console.warn('Failed to save to database or get download URL, using fallback:', dbErr);
-            fallbackToCompressedBase64();
+        const formData = new FormData();
+        formData.append('file', file);
+        const endpointUrl = providerId 
+          ? `/.netlify/functions/upload-provider-image?providerId=${encodeURIComponent(providerId)}`
+          : '/.netlify/functions/upload-provider-image';
+
+        const response = await fetch(endpointUrl, { method: 'POST', body: formData });
+        setUploadProgress(70);
+
+        if (response.ok) {
+          const json = await response.json();
+          if (json.imageUrl) {
+            finalUrl = json.imageUrl;
           }
         }
-      );
+      } catch (cloudErr) {
+        console.warn('Cloud R2 upload skipped, using local data URL:', cloudErr);
+      }
+
+      if (!finalUrl) {
+        finalUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      // Save to media library in Firestore if available
+      try {
+        const db = getDb();
+        await addDoc(collection(db, 'media_library'), {
+          name: file.name,
+          url: finalUrl,
+          size: file.size,
+          type: file.type,
+          altText: file.name.split('.')[0],
+          source: finalUrl.startsWith('data:') ? 'local-upload' : 'r2',
+          createdAt: serverTimestamp()
+        });
+      } catch (dbErr) {
+        console.warn('Firestore media collection update skipped:', dbErr);
+      }
+
+      setUploadProgress(100);
+      setSelectedUrl(finalUrl);
+      setIsUploading(false);
+      setUploadProgress(null);
+      setActiveTab('gallery');
     } catch (err: any) {
-      console.error('File upload exception:', err);
-      fallbackToCompressedBase64();
+      console.error('[MediaPickerModal] upload error:', err);
+      setUploadError(err?.message ?? 'Upload failed. Please try again.');
+      setIsUploading(false);
+      setUploadProgress(null);
+    } finally {
+      e.target.value = '';
     }
   };
 
@@ -424,7 +381,7 @@ export default function MediaPickerModal({
                 </div>
                 <h4 className="text-base font-bold text-slate-900 mb-1">Click to Upload or Drag & Drop</h4>
                 <p className="text-xs text-slate-500 mb-4 max-w-sm">
-                  Supports JPG, PNG, WebP, SVG up to 10MB. Files are securely stored in your clinic media bucket.
+                  Supports JPG, PNG, and WebP up to 5 MB. Images are permanently stored in Cloudflare R2.
                 </p>
                 <span className="inline-flex items-center gap-2 bg-primary-600 text-white text-xs font-semibold px-5 py-2.5 rounded-full shadow-sm">
                   <Plus size={14} />
@@ -432,7 +389,7 @@ export default function MediaPickerModal({
                 </span>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleFileUpload}
                   disabled={isUploading}
                   className="hidden"

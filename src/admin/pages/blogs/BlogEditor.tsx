@@ -19,7 +19,6 @@ import BlogAuthorsModal from '../../components/BlogAuthorsModal';
 import BlogTagsModal from '../../components/BlogTagsModal';
 import BlogDevicePreviewModal from '../../components/BlogDevicePreviewModal';
 import DeleteBlogConfirmModal from '../../components/DeleteBlogConfirmModal';
-import { getAuthorAvatar } from '../../../utils/providerImages';
 
 export default function BlogEditor() {
   const { id } = useParams<{ id: string }>();
@@ -148,7 +147,7 @@ export default function BlogEditor() {
         updated.slug = slugify(val);
       }
       if (!prev.seoTitle || prev.seoTitle === prev.title) {
-        updated.seoTitle = `${val} | ${siteSettings?.general?.clinicName || 'Newark Medical Clinic'}`;
+        updated.seoTitle = `${val} | ${siteSettings.general.clinicName || 'Newark Medical Clinic'}`;
       }
       return updated;
     });
@@ -270,7 +269,7 @@ export default function BlogEditor() {
         status: finalStatus,
         slug: cleanSlug,
         canonicalUrl: formData.canonicalUrl || `${window.location.origin}/blog/${cleanSlug}`,
-        seoTitle: formData.seoTitle || `${formData.title} | ${siteSettings?.general?.clinicName || 'Newark Medical Clinic'}`,
+        seoTitle: formData.seoTitle || `${formData.title} | ${siteSettings.general.clinicName || 'Newark Medical Clinic'}`,
         metaDescription: formData.metaDescription || formData.excerpt || '',
         publishDate: finalStatus === 'published' && !formData.publishDate ? todayDate : formData.publishDate || todayDate,
         updatedAt: nowIso
@@ -854,13 +853,12 @@ export default function BlogEditor() {
                   const auth = blogAuthors.find(a => a.id === selId || a.name === selId);
                   setHasUnsavedChanges(true);
                   if (auth) {
-                    const dynamicAvatar = getAuthorAvatar(auth, providers, blogAuthors);
                     setFormData(prev => ({
                       ...prev,
                       authorId: auth.id,
                       author: auth.name,
                       authorTitle: `${auth.qualification || 'MD'} - ${auth.designation || 'Medical Contributor'}`,
-                      authorAvatar: dynamicAvatar
+                      authorAvatar: auth.profilePhoto
                     }));
                   } else {
                     setFormData(prev => ({ ...prev, author: selId, authorId: '' }));
@@ -880,12 +878,9 @@ export default function BlogEditor() {
             {activeAuthor && (
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-3">
                 <img
-                  src={getAuthorAvatar(formData.authorAvatar ? { name: formData.author || activeAuthor.name, profilePhoto: formData.authorAvatar } : activeAuthor, providers, blogAuthors)}
+                  src={formData.authorAvatar || activeAuthor.profilePhoto}
                   alt={formData.author || activeAuthor.name}
                   className="w-12 h-12 rounded-full object-cover border border-slate-300"
-                  onError={(e) => {
-                    (e.target as HTMLElement).setAttribute('src', '/newark_internal_medicine_4.webp');
-                  }}
                 />
                 <div>
                   <h4 className="text-xs font-bold text-slate-900">
@@ -1135,7 +1130,7 @@ export default function BlogEditor() {
         <BlogSeoPanel
           post={formData}
           author={activeAuthor}
-          siteName={siteSettings?.general?.clinicName || 'Newark Medical Clinic'}
+          siteName={siteSettings.general.clinicName || 'Newark Medical Clinic'}
           baseUrl={window.location.origin}
           onChange={(updates) => {
             setHasUnsavedChanges(true);

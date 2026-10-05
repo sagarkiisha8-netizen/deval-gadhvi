@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { 
   X, Plus, UserCheck, Edit2, Trash2, Check, 
-  AlertCircle, Shield, Sparkles, Image as ImageIcon, ExternalLink, Stethoscope 
+  AlertCircle, Shield, Sparkles, Image as ImageIcon, ExternalLink 
 } from 'lucide-react';
 import { useCmsData } from '../../context/CmsContext';
 import { BlogAuthor } from '../../types';
 import MediaPickerModal from './MediaPickerModal';
-import { getAuthorAvatar, getProviderImage } from '../../utils/providerImages';
 
 interface BlogAuthorsModalProps {
   isOpen: boolean;
@@ -19,7 +18,7 @@ export default function BlogAuthorsModal({
   onClose,
   onSelectAuthor
 }: BlogAuthorsModalProps) {
-  const { blogAuthors, createAuthor, updateAuthor, deleteAuthor, blogs, providers } = useCmsData();
+  const { blogAuthors, createAuthor, updateAuthor, deleteAuthor, blogs } = useCmsData();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [isMediaOpen, setIsMediaOpen] = useState(false);
@@ -30,7 +29,7 @@ export default function BlogAuthorsModal({
     designation: 'Staff Physician',
     qualification: 'MD, FACP',
     bio: '',
-    profilePhoto: '/newark_internal_medicine_4.webp',
+    profilePhoto: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
     profileUrl: '',
     authorType: 'Doctor',
     isActive: true
@@ -42,10 +41,7 @@ export default function BlogAuthorsModal({
 
   const handleStartEdit = (author: BlogAuthor) => {
     setEditingId(author.id);
-    setAuthorForm({
-      ...author,
-      profilePhoto: author.profilePhoto || getAuthorAvatar(author, providers, blogAuthors)
-    });
+    setAuthorForm(author);
     setIsAdding(false);
   };
 
@@ -56,26 +52,12 @@ export default function BlogAuthorsModal({
       designation: 'Clinical Specialist',
       qualification: 'MD',
       bio: '',
-      profilePhoto: '/newark_internal_medicine_4.webp',
+      profilePhoto: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
       profileUrl: '',
       authorType: 'Doctor',
       isActive: true
     });
     setIsAdding(true);
-  };
-
-  const handleAssignDoctor = (provider: any) => {
-    const pPhoto = provider.image || provider.imageUrl || provider.photoUrl || getProviderImage(provider);
-    setAuthorForm(prev => ({
-      ...prev,
-      name: provider.name,
-      designation: provider.title || 'Primary Care Physician',
-      qualification: provider.credentials || 'MD',
-      profilePhoto: pPhoto,
-      profileUrl: `/providers/${provider.slug || provider.id}`,
-      bio: provider.bio || prev.bio,
-      authorType: 'Doctor'
-    }));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -151,43 +133,11 @@ export default function BlogAuthorsModal({
                 <button
                   type="button"
                   onClick={() => { setIsAdding(false); setEditingId(null); }}
-                  className="text-xs text-slate-500 hover:text-slate-700 cursor-pointer"
+                  className="text-xs text-slate-500 hover:text-slate-700"
                 >
                   Cancel
                 </button>
               </div>
-
-              {/* Quick Preset: Link to Clinic Doctor */}
-              {providers && providers.length > 0 && (
-                <div className="p-3 bg-white/80 rounded-xl border border-primary-100 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-primary-900 flex items-center gap-1.5 uppercase tracking-wider">
-                      <Stethoscope size={13} className="text-primary-600" />
-                      <span>Link to Clinic Doctor Headshot</span>
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {providers.map((p) => {
-                      const pImg = getProviderImage(p);
-                      return (
-                        <button
-                          key={p.id || p.name}
-                          type="button"
-                          onClick={() => handleAssignDoctor(p)}
-                          className="px-2.5 py-1.5 bg-white hover:bg-primary-50 border border-primary-200 text-slate-800 hover:text-primary-900 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-                        >
-                          <img
-                            src={pImg}
-                            alt={p.name}
-                            className="w-4 h-4 rounded-full object-cover border border-slate-200"
-                          />
-                          <span>{p.name.replace('Dr. ', '')}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -346,13 +296,13 @@ export default function BlogAuthorsModal({
                     >
                       <div className="flex items-center gap-3">
                         <img
-                          src={getAuthorAvatar(author, providers, blogAuthors)}
+                          src={author.profilePhoto}
                           alt={author.name}
                           className="w-10 h-10 rounded-full object-cover border border-slate-200"
                           onError={(e) => {
                             (e.target as HTMLElement).setAttribute(
                               'src',
-                              '/newark_internal_medicine_4.webp'
+                              'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800'
                             );
                           }}
                         />

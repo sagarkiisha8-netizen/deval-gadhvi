@@ -3,10 +3,7 @@ import {
   Upload, Image as ImageIcon, X, Check, Loader2, 
   AlertCircle, Link as LinkIcon, Sparkles, RefreshCw
 } from 'lucide-react';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../lib/firebase';
 import MediaPickerModal from './MediaPickerModal';
-import { uploadMediaFile } from '../../utils/mediaStorage';
 
 interface FeaturedImageUploaderProps {
   imageUrl: string;
@@ -39,34 +36,49 @@ export default function FeaturedImageUploader({
   const handleFileUpload = async (file: File) => {
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setUploadError('Please select a valid image file (JPEG, PNG, WEBP).');
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setUploadError('Please select a valid JPG, PNG, or WebP image.');
       return;
     }
 
-    if (file.size > 8 * 1024 * 1024) {
-      setUploadError('Image size exceeds 8MB. Please select an optimized image.');
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Image size exceeds 5MB limit.');
       return;
     }
 
     setIsUploading(true);
-    setUploadProgress(30);
+    setUploadProgress(20);
     setUploadError(null);
 
     try {
-      const fileName = `blog_covers/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-      const { url: downloadUrl } = await uploadMediaFile(file, fileName);
-      setUploadProgress(100);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      setUploadProgress(50);
+      const res = await fetch('/.netlify/functions/upload-provider-image?providerId=blog', {
+        method: 'POST',
+        body: formData,
+      });
+
+      setUploadProgress(85);
+      const json = await res.json();
+      if (!res.ok || !json.imageUrl) {
+        throw new Error(json.error || `Upload failed (HTTP ${res.status})`);
+      }
+
       onChange({
-        imageUrl: downloadUrl,
+        imageUrl: json.imageUrl,
         altText: altText || file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
         caption,
         credit
       });
+      setUploadProgress(100);
+      setIsUploading(false);
+      setUploadProgress(null);
     } catch (err: any) {
-      console.error('Featured image upload error:', err);
-      setUploadError(err.message || 'Upload failed');
-    } finally {
+      console.error('FeaturedImage upload error:', err);
+      setUploadError(err.message || 'Upload failed. Please try again.');
       setIsUploading(false);
       setUploadProgress(null);
     }
@@ -102,19 +114,7 @@ export default function FeaturedImageUploader({
   };
 
   return (
-    <div className="space-y-3">
-      {/* Where this image displays banner */}
-      <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-1">
-        <div className="flex items-center gap-1.5 text-emerald-800 text-[11px] font-bold uppercase tracking-wider">
-          <span>📍 Where This Featured Image Displays</span>
-        </div>
-        <p className="text-[11px] text-slate-600 leading-snug">
-          • Top Header Banner on the <strong>Article Detail Page</strong> (/blog/[slug])<br />
-          • Article Card Thumbnail in the <strong>Blog Archive</strong> (/blog)<br />
-          • OpenGraph & Social Media Share Preview Image
-        </p>
-      </div>
-
+    <div className="space-y-4">
       <input
         type="file"
         ref={fileInputRef}
@@ -231,7 +231,7 @@ export default function FeaturedImageUploader({
             <div className="py-6 flex flex-col items-center">
               <Loader2 size={32} className="text-primary-600 animate-spin mb-3" />
               <p className="text-xs font-semibold text-slate-700">
-                Uploading to Firebase Storage... {uploadProgress !== null ? `${uploadProgress}%` : ''}
+                Uploading to Cloudflare R2... {uploadProgress !== null ? `${uploadProgress}%` : ''}
               </p>
               <div className="w-48 bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
                 <div
@@ -273,6 +273,18 @@ export default function FeaturedImageUploader({
           )}
         </div>
       )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={(e) => {
+          if (e.target.files?.[0]) handleFileUpload(e.target.files[0]);
+        }}
+        disabled={isUploading}
+        className="hidden"
+      />
 
       {/* URL Input Bar */}
       {urlInputOpen && !imageUrl && (

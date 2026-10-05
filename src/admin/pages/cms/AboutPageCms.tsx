@@ -220,15 +220,6 @@ export default function AboutPageCms() {
             Facility Imagery & Core Values
           </h2>
 
-          <div className="p-3 bg-primary-50 border border-primary-200 rounded-2xl space-y-1 mb-3">
-            <div className="flex items-center gap-1.5 text-primary-800 text-[11px] font-bold uppercase tracking-wider">
-              <span>📍 Where This Image Displays</span>
-            </div>
-            <p className="text-[11px] text-slate-600 leading-snug">
-              Prominently displayed on the <strong>/about</strong> (About Practice & Medical Heritage) page next to the clinic history and mission statement.
-            </p>
-          </div>
-
           <div className="flex items-center gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
             <div className="w-24 h-16 rounded-xl bg-slate-200 overflow-hidden shrink-0 border border-slate-300">
               <img

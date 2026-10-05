@@ -11,7 +11,6 @@ import { getDb } from '../../lib/firebase';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { logAdminActivity } from '../utils/auditLogger';
 import { GalleryItem } from '../../types';
-import { uploadMediaFile, uploadBase64Image, isBase64Image } from '../../utils/mediaStorage';
 
 const DEFAULT_GALLERY: GalleryItem[] = [
   {
@@ -38,7 +37,7 @@ const DEFAULT_GALLERY: GalleryItem[] = [
     id: 'gal-3',
     title: 'Dr. Prahlad Gadhvi, MD, FACP',
     category: 'doctor',
-    imageUrl: 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
+    imageUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
     caption: 'Founder & Medical Director conducting clinical rounds.',
     altText: 'Dr. Prahlad Gadhvi portrait in clinical coat',
     displayOrder: 3,
@@ -117,27 +116,15 @@ export default function GalleryManager() {
     setIsCreating(true);
   };
 
-  const [isUploading, setIsUploading] = useState(false);
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem || !editingItem.title.trim()) return;
 
     setSaving(true);
     try {
-      let finalImageUrl = editingItem.imageUrl;
-      if (isBase64Image(finalImageUrl)) {
-        try {
-          finalImageUrl = await uploadBase64Image(finalImageUrl, `gallery/${Date.now()}`);
-        } catch (uploadErr) {
-          console.warn('Could not upload base64 gallery image:', uploadErr);
-        }
-      }
-
       const db = getDb();
       const toSave = {
         ...editingItem,
-        imageUrl: finalImageUrl,
         updatedAt: serverTimestamp()
       };
 
@@ -161,18 +148,14 @@ export default function GalleryManager() {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && editingItem) {
-      setIsUploading(true);
-      try {
-        const permanentUrl = await uploadMediaFile(file, `gallery/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`);
-        setEditingItem((prev) => prev ? { ...prev, imageUrl: permanentUrl } : null);
-      } catch (err: any) {
-        alert('Upload failed: ' + (err.message || 'Unknown error'));
-      } finally {
-        setIsUploading(false);
-      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditingItem({ ...editingItem, imageUrl: reader.result as string });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -230,16 +213,6 @@ export default function GalleryManager() {
           <Plus size={16} />
           <span>Upload Gallery Asset</span>
         </button>
-      </div>
-
-      {/* Where this displays banner */}
-      <div className="p-4 bg-primary-50 border border-primary-200 rounded-2xl space-y-1">
-        <div className="flex items-center gap-1.5 text-primary-800 text-xs font-bold uppercase tracking-wider">
-          <span>📍 Where Gallery Photos Display</span>
-        </div>
-        <p className="text-xs text-slate-600 leading-relaxed">
-          Photos uploaded here appear across the <strong>About Us Practice Facility Tour</strong>, <strong>Doctor Credential Honors</strong>, and the <strong>Interactive Clinic Showcase</strong> modal.
-        </p>
       </div>
 
       {/* Categories Filter Tabs */}

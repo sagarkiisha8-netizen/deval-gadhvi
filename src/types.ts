@@ -117,13 +117,11 @@ export interface Provider {
   specialty: string; // e.g. "Internal Medicine & Preventive Cardiology"
   bio: string;
   fullBio?: string;
-  image?: string;
   imageUrl: string;
   photoUrl?: string;
   experienceYears?: number;
   education?: string[];
   certifications?: string[];
-  specialties?: string[];  // e.g. ['Internal Medicine', 'Preventive Screenings']
   languages?: string[];
   insuranceAccepted?: string[];
   rating?: number;
@@ -282,7 +280,17 @@ export interface HomePageContent {
   };
   carePhilosophyImage?: string;
   fullWidthImage?: string;
+  whyChooseUs: {
+    tag: string;
+    title: string;
+    subtitle: string;
+  };
   process: {
+    tag: string;
+    title: string;
+    subtitle: string;
+  };
+  testimonials: {
     tag: string;
     title: string;
     subtitle: string;
@@ -293,13 +301,22 @@ export interface HomePageContent {
     subtitle: string;
     items: FaqItem[];
   };
+  ctaBanner: {
+    headline: string;
+    subtitle: string;
+    buttonText: string;
+    buttonLink: string;
+    phoneText: string;
+  };
   sectionVisibility: {
     hero: boolean;
     stats: boolean;
     services: boolean;
     about: boolean;
+    whyChooseUs: boolean;
     process: boolean;
     providers: boolean;
+    testimonials: boolean;
     faq: boolean;
     contact: boolean;
     floatingDock: boolean;
@@ -702,3 +719,4 @@ export interface ActivityLog {
   category: 'auth' | 'blog' | 'service' | 'homepage' | 'doctor' | 'appointment' | 'settings' | 'general';
   timestamp: any;
 }
+

@@ -72,11 +72,6 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // Centralized website image registry used by the public site and admin media manager
-    match /site_media/{document} {
-      allow read, write: if true;
-    }
-
     // Practice Global Settings & SEO
     match /settings/{document} {
       allow read, write: if true;
@@ -141,3 +136,4 @@ service cloud.firestore {
     }
   }
 }
+

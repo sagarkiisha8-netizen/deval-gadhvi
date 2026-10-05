@@ -51,7 +51,7 @@ import BlogTagsPage from './admin/pages/blogs/BlogTagsPage';
 import ProvidersManager from './admin/pages/ProvidersManager';
 import ServicesManager from './admin/pages/ServicesManager';
 import MediaLibrary from './admin/pages/MediaLibrary';
-import PageImagesManager from './admin/pages/PageImagesManager';
+import WebsiteMediaManager from './admin/pages/WebsiteMediaManager';
 import TestimonialsManager from './admin/pages/TestimonialsManager';
 
 // Page-by-Page CMS Editors
@@ -85,7 +85,7 @@ import MobileFloatingBar from './components/MobileFloatingBar';
 
 function PublicLayout() {
   return (
-    <div data-public-theme="premium-editorial-v1" className="min-h-screen flex flex-col font-sans selection:bg-primary-100 selection:text-primary-900 bg-[#FCFBF8] text-[#252A2B] pb-16 md:pb-0">
+    <div className="min-h-screen flex flex-col font-sans selection:bg-primary-100 selection:text-primary-900 bg-white text-slate-900 pb-16 md:pb-0">
       <ScrollToTop />
       <AnnouncementPopup />
       <Navbar />
@@ -193,9 +193,8 @@ export default function App() {
             <Route path="providers" element={<ProvidersManager />} />
             <Route path="services" element={<ServicesManager />} />
             <Route path="media" element={<MediaLibrary />} />
-            <Route path="page-images" element={<PageImagesManager />} />
-            <Route path="media-manager" element={<PageImagesManager />} />
-            <Route path="website-media" element={<PageImagesManager />} />
+            <Route path="media-manager" element={<WebsiteMediaManager />} />
+            <Route path="website-media" element={<WebsiteMediaManager />} />
             
             {/* CMS Page Editors */}
             <Route path="pages/home" element={<HomePageCms />} />

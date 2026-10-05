@@ -1,18 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { 
   UserCheck, Plus, Search, Edit2, Trash2, Shield, 
   ExternalLink, Stethoscope, Sparkles, Check, AlertCircle, 
-  Image as ImageIcon, BookOpen, ArrowLeft, Upload, Loader2 
+  Image as ImageIcon, BookOpen, ArrowLeft 
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCmsData } from '../../../context/CmsContext';
 import { BlogAuthor } from '../../../types';
 import MediaPickerModal from '../../components/MediaPickerModal';
-import { getAuthorAvatar, getProviderImage, normalizeProviderKey, DEFAULT_PROVIDER_IMAGES } from '../../../utils/providerImages';
-import { uploadMediaFile } from '../../../utils/mediaStorage';
 
 export default function BlogAuthorsPage() {
-  const { blogAuthors, createAuthor, updateAuthor, deleteAuthor, blogs, providers } = useCmsData();
+  const { blogAuthors, createAuthor, updateAuthor, deleteAuthor, blogs } = useCmsData();
   const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,8 +19,6 @@ export default function BlogAuthorsPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [isMediaOpen, setIsMediaOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form State
   const [formData, setFormData] = useState<Partial<BlogAuthor>>({
@@ -30,7 +26,7 @@ export default function BlogAuthorsPage() {
     designation: '',
     qualification: '',
     bio: '',
-    profilePhoto: '',
+    profilePhoto: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
     profileUrl: '',
     socialLinks: {
       website: '',
@@ -53,7 +49,7 @@ export default function BlogAuthorsPage() {
       designation: 'Attending Physician',
       qualification: 'MD',
       bio: '',
-      profilePhoto: '/newark_internal_medicine_4.webp',
+      profilePhoto: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
       profileUrl: '',
       socialLinks: {
         website: '',
@@ -68,10 +64,8 @@ export default function BlogAuthorsPage() {
 
   const handleStartEdit = (author: BlogAuthor) => {
     setEditingId(author.id);
-    const resolvedPhoto = author.profilePhoto || getAuthorAvatar(author, providers, blogAuthors);
     setFormData({
       ...author,
-      profilePhoto: resolvedPhoto,
       socialLinks: {
         website: author.socialLinks?.website || '',
         linkedin: author.socialLinks?.linkedin || '',
@@ -79,44 +73,6 @@ export default function BlogAuthorsPage() {
       }
     });
     setIsAdding(false);
-  };
-
-  // Direct Photo Upload
-  const handleDirectPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploadingPhoto(true);
-    try {
-      const res = await uploadMediaFile(file, {
-        folder: 'authors',
-        maxWidth: 800,
-        maxHeight: 800,
-        quality: 0.92
-      });
-      setFormData(prev => ({ ...prev, profilePhoto: res.url }));
-      showToast('Doctor photo uploaded and optimized!');
-    } catch (err: any) {
-      alert(`Photo upload failed: ${err.message || 'Error'}`);
-    } finally {
-      setIsUploadingPhoto(false);
-    }
-  };
-
-  // Quick Assign from Clinic Doctors
-  const handleAssignDoctor = (provider: any) => {
-    const pPhoto = provider.image || provider.imageUrl || provider.photoUrl || getProviderImage(provider);
-    setFormData(prev => ({
-      ...prev,
-      name: provider.name,
-      designation: provider.title || 'Primary Care Physician',
-      qualification: provider.credentials || 'MD',
-      profilePhoto: pPhoto,
-      profileUrl: `/providers/${provider.slug || provider.id}`,
-      bio: provider.bio || prev.bio,
-      authorType: 'Doctor'
-    }));
-    showToast(`Linked author details & photo for ${provider.name}!`);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -258,106 +214,33 @@ export default function BlogAuthorsPage() {
             </div>
 
             <form onSubmit={handleSave} className="space-y-4">
-              {/* Quick Preset: Link to Clinic Doctor */}
-              {providers && providers.length > 0 && (
-                <div className="p-3 bg-primary-50/50 rounded-2xl border border-primary-100 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-primary-900 flex items-center gap-1.5 uppercase tracking-wider">
-                      <Stethoscope size={13} className="text-primary-600" />
-                      <span>Quick Link Clinic Doctor</span>
-                    </span>
-                    <span className="text-[10px] text-primary-700 font-medium">Auto-fills doctor photo & details</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {providers.map((p) => {
-                      const pImg = getProviderImage(p);
-                      return (
-                        <button
-                          key={p.id || p.name}
-                          type="button"
-                          onClick={() => handleAssignDoctor(p)}
-                          className="px-2.5 py-1.5 bg-white hover:bg-primary-100/80 border border-primary-200 text-slate-800 hover:text-primary-900 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-                        >
-                          <img
-                            src={pImg}
-                            alt={p.name}
-                            className="w-5 h-5 rounded-full object-cover border border-slate-200"
-                          />
-                          <span>{p.name.replace('Dr. ', '')}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
               {/* Photo */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Profile Photo
-                  </label>
-                  <span className="text-[10px] text-slate-400">Headshot (1:1 ratio)</span>
-                </div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Profile Photo URL
+                </label>
                 <div className="flex items-center gap-3">
                   <img
-                    src={formData.profilePhoto || getAuthorAvatar(formData as any, providers, blogAuthors)}
+                    src={formData.profilePhoto || 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=200'}
                     alt="Preview"
-                    className="w-14 h-14 rounded-2xl object-cover border border-slate-200 shrink-0 shadow-xs"
+                    className="w-12 h-12 rounded-full object-cover border border-slate-200"
                   />
-                  <div className="flex-1 space-y-1.5">
-                    {formData.authorType === 'Doctor' ? (
-                      <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl">
-                        <p className="text-[11px] text-blue-800 leading-snug">
-                          <strong>Doctor photos are managed centrally.</strong> To update this doctor's image everywhere on the website, go to <Link to="/admin/providers" className="underline font-bold text-blue-700 hover:text-blue-900">Physicians & Doctors</Link>.
-                        </p>
-                      </div>
-                    ) : (
-                      <>
-                        <input
-                          type="url"
-                          value={formData.profilePhoto || ''}
-                          onChange={(e) => setFormData({ ...formData, profilePhoto: e.target.value })}
-                          placeholder="https://... or /image.webp"
-                          className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl font-mono text-slate-700"
-                        />
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isUploadingPhoto}
-                            className="px-2.5 py-1 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
-                          >
-                            {isUploadingPhoto ? (
-                              <>
-                                <Loader2 size={12} className="animate-spin" />
-                                <span>Uploading...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Upload size={12} />
-                                <span>Upload Image</span>
-                              </>
-                            )}
-                          </button>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleDirectPhotoUpload}
-                            className="hidden"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setIsMediaOpen(true)}
-                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                          >
-                            <ImageIcon size={12} />
-                            <span>Media Library</span>
-                          </button>
-                        </div>
-                      </>
-                    )}
+                  <div className="flex-1 space-y-1">
+                    <input
+                      type="url"
+                      value={formData.profilePhoto || ''}
+                      onChange={(e) => setFormData({ ...formData, profilePhoto: e.target.value })}
+                      placeholder="https://..."
+                      className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsMediaOpen(true)}
+                      className="text-[11px] text-primary-600 font-semibold hover:underline flex items-center gap-1"
+                    >
+                      <ImageIcon size={12} />
+                      <span>Choose from Media Library</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -372,7 +255,7 @@ export default function BlogAuthorsPage() {
                   required
                   value={formData.name || ''}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Dr. Deval Gadhvi"
+                  placeholder="e.g. Dr. Prahlad Gadhvi"
                   className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl font-semibold"
                 />
               </div>
@@ -502,15 +385,9 @@ export default function BlogAuthorsPage() {
                 >
                   <div className="flex items-start gap-4">
                     <img
-                      src={getAuthorAvatar(author, providers, blogAuthors)}
+                      src={author.profilePhoto}
                       alt={author.name}
                       className="w-16 h-16 rounded-2xl object-cover border border-slate-200 shrink-0 shadow-xs"
-                      onError={(e) => {
-                        (e.target as HTMLElement).setAttribute(
-                          'src',
-                          '/newark_internal_medicine_4.webp'
-                        );
-                      }}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">

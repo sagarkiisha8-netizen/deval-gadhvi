@@ -8,22 +8,10 @@ import { useCmsData } from '../../../context/CmsContext';
 import { HomePageContent, FaqItem } from '../../../types';
 import MediaPickerModal from '../../components/MediaPickerModal';
 
-const ACTIVE_HOMEPAGE_SECTION_KEYS = new Set([
-  'hero',
-  'stats',
-  'services',
-  'about',
-  'process',
-  'providers',
-  'faq',
-  'contact',
-  'floatingDock'
-]);
-
 export default function HomePageCms() {
   const { homeContent, updateHomePageContent } = useCmsData();
   const [formData, setFormData] = useState<HomePageContent>(homeContent);
-  const [activeTab, setActiveTab] = useState<'hero' | 'stats' | 'about' | 'faq' | 'visibility'>('hero');
+  const [activeTab, setActiveTab] = useState<'hero' | 'stats' | 'about' | 'faq' | 'cta' | 'visibility'>('hero');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
@@ -42,16 +30,7 @@ export default function HomePageCms() {
     setIsSaving(true);
     setSaveSuccess(false);
     try {
-      const cleanedFormData: HomePageContent = {
-        ...formData,
-        sectionVisibility: Object.fromEntries(
-          Object.entries(formData.sectionVisibility).filter(([key]) =>
-            ACTIVE_HOMEPAGE_SECTION_KEYS.has(key)
-          )
-        ) as HomePageContent['sectionVisibility']
-      };
-      setFormData(cleanedFormData);
-      await updateHomePageContent(cleanedFormData);
+      await updateHomePageContent(formData);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
@@ -137,6 +116,7 @@ export default function HomePageCms() {
           { id: 'stats', label: 'Key Statistics' },
           { id: 'about', label: 'About Preview' },
           { id: 'faq', label: 'FAQ Accordion' },
+          { id: 'cta', label: 'Bottom CTA' },
           { id: 'visibility', label: 'Section Visibility' }
         ].map((tab) => (
           <button
@@ -248,15 +228,6 @@ export default function HomePageCms() {
               {/* Right Column: Hero Image & CTAs */}
               <div className="space-y-4">
                 <div>
-                  <div className="p-3 bg-primary-50 border border-primary-200 rounded-2xl mb-3 space-y-1">
-                    <div className="flex items-center gap-1.5 text-primary-800 text-[11px] font-bold uppercase tracking-wider">
-                      <span>📍 Where This Image Displays</span>
-                    </div>
-                    <p className="text-[11px] text-slate-600 leading-snug">
-                      Top Right of the <strong>Homepage Hero Section</strong> (prominently featured alongside the headline on desktop & mobile).
-                    </p>
-                  </div>
-
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-semibold text-slate-700">
                       Doctor / Physician Portrait (Right Side)
@@ -674,15 +645,6 @@ export default function HomePageCms() {
 
             {/* About Section Image & Media */}
             <div className="pt-4 border-t border-slate-100 space-y-3">
-              <div className="p-3 bg-primary-50 border border-primary-200 rounded-2xl space-y-1">
-                <div className="flex items-center gap-1.5 text-primary-800 text-[11px] font-bold uppercase tracking-wider">
-                  <span>📍 Where This Image Displays</span>
-                </div>
-                <p className="text-[11px] text-slate-600 leading-snug">
-                  Featured on the <strong>Homepage</strong> inside the editorial <em>"About Newark Medical Associates / Why We Practice"</em> heritage section.
-                </p>
-              </div>
-
               <label className="block text-xs font-semibold text-slate-700">
                 About Section Landscape Photography
               </label>
@@ -784,6 +746,76 @@ export default function HomePageCms() {
           </div>
         )}
 
+        {/* CTA BANNER */}
+        {activeTab === 'cta' && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+            <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
+              Bottom Call-to-Action Banner
+            </h2>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Headline Text
+              </label>
+              <input
+                type="text"
+                value={formData.ctaBanner.headline}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  ctaBanner: { ...formData.ctaBanner, headline: e.target.value }
+                })}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Subtitle Description
+              </label>
+              <input
+                type="text"
+                value={formData.ctaBanner.subtitle}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  ctaBanner: { ...formData.ctaBanner, subtitle: e.target.value }
+                })}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm"
+              />
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Button Text
+                </label>
+                <input
+                  type="text"
+                  value={formData.ctaBanner.buttonText}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    ctaBanner: { ...formData.ctaBanner, buttonText: e.target.value }
+                  })}
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Direct Phone Subtext
+                </label>
+                <input
+                  type="text"
+                  value={formData.ctaBanner.phoneText}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    ctaBanner: { ...formData.ctaBanner, phoneText: e.target.value }
+                  })}
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* SECTION VISIBILITY */}
         {activeTab === 'visibility' && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
@@ -795,9 +827,7 @@ export default function HomePageCms() {
             </p>
 
             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {Object.entries(formData.sectionVisibility)
-                .filter(([sectionKey]) => ACTIVE_HOMEPAGE_SECTION_KEYS.has(sectionKey))
-                .map(([sectionKey, isVisible]) => (
+              {Object.entries(formData.sectionVisibility).map(([sectionKey, isVisible]) => (
                 <label
                   key={sectionKey}
                   className="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer text-xs font-semibold text-slate-800"

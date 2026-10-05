@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { useCmsData } from '../context/CmsContext';
 import { BlogPost } from '../types';
-import { getAuthorAvatar } from '../utils/providerImages';
 import { auth } from '../lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
@@ -24,7 +23,7 @@ interface TocItem {
 
 export default function BlogDetailPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { blogs, providers, blogAuthors, siteSettings, loading, trackPageView, getMediaUrl } = useCmsData();
+  const { blogs, providers, siteSettings, loading, trackPageView, getMediaUrl } = useCmsData();
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(auth.currentUser);
   const [copiedToast, setCopiedToast] = useState(false);
   const [isTocOpenMobile, setIsTocOpenMobile] = useState(false);
@@ -403,6 +402,17 @@ export default function BlogDetailPage() {
           {/* Author Metadata Bar & Medical Review */}
           <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-5">
             <div className="flex items-center gap-3.5">
+              {article.authorAvatar ? (
+                <img
+                  src={article.authorAvatar}
+                  alt={article.author}
+                  className="w-12 h-12 rounded-full object-cover border-2 border-blue-100 shadow-2xs shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-base shrink-0">
+                  {article.author.charAt(0)}
+                </div>
+              )}
               <div>
                 <div className="text-sm font-bold text-slate-900">
                   Written by {article.author}
@@ -806,6 +816,17 @@ export default function BlogDetailPage() {
                 About The Author
               </div>
               <div className="flex items-center gap-3.5 mb-3.5">
+                {article.authorAvatar ? (
+                  <img
+                    src={article.authorAvatar}
+                    alt={article.author}
+                    className="w-14 h-14 rounded-full object-cover border border-slate-200 shadow-2xs shrink-0"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-lg shrink-0">
+                    {article.author.charAt(0)}
+                  </div>
+                )}
                 <div>
                   <h4 className="text-sm font-bold text-slate-900">{article.author}</h4>
                   <p className="text-xs text-blue-600 font-medium">{article.authorTitle || 'Staff Physician'}</p>

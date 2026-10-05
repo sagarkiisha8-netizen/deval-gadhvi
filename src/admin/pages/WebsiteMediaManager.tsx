@@ -9,7 +9,6 @@ import { useCmsData } from '../../context/CmsContext';
 import { SiteMediaItem, SiteMediaCategory } from '../../types';
 import { DEFAULT_SITE_MEDIA } from '../../data/defaultSiteMedia';
 import MediaPickerModal from '../components/MediaPickerModal';
-import { uploadMediaFile } from '../../utils/mediaStorage';
 
 interface CategoryTab {
   key: SiteMediaCategory;
@@ -128,15 +127,7 @@ export default function WebsiteMediaManager() {
     const edits = draftEdits[item.id];
     setSavingIds(prev => ({ ...prev, [item.id]: true }));
     try {
-      // CRITICAL: Always include the current URL in the payload.
-      // Without this, clicking "Update & Re-sync" when there are no draft edits
-      // sends an empty payload, and the provider sync condition
-      // `id === 'providers-dr-prahlad' && updates.url` never fires.
-      const currentUrl = getItemValue(item, 'url') || item.url;
-      const currentAlt = getItemValue(item, 'altText') || item.altText;
       const payload: Partial<SiteMediaItem> = {
-        url: currentUrl,
-        altText: currentAlt,
         ...edits
       };
       await updateSiteMediaItem(item.id, payload);
@@ -159,7 +150,6 @@ export default function WebsiteMediaManager() {
       }, 3000);
     } catch (err) {
       console.error('Failed to save media item:', err);
-      alert(`Save failed: ${(err as Error)?.message || 'Firebase could not save this image change.'}`);
     } finally {
       setSavingIds(prev => ({ ...prev, [item.id]: false }));
     }
@@ -204,32 +194,14 @@ export default function WebsiteMediaManager() {
   };
 
   // Callback from Media Picker
-  const handlePickerSelect = async (imageUrl: string, altText?: string) => {
+  const handlePickerSelect = (imageUrl: string, altText?: string) => {
     if (!pickerTargetId) return;
     const target = allItems.find(i => i.id === pickerTargetId);
     if (!target) return;
 
-    const updates: Partial<SiteMediaItem> = {
-      url: imageUrl,
-      ...(altText && altText.trim() !== '' ? { altText } : {})
-    };
-
-    setSavingIds(prev => ({ ...prev, [pickerTargetId]: true }));
-    try {
-      await updateSiteMediaItem(pickerTargetId, updates);
-      setSavedSuccessIds(prev => ({ ...prev, [pickerTargetId!]: true }));
-      setTimeout(() => {
-        setSavedSuccessIds(prev => {
-          const next = { ...prev };
-          delete next[pickerTargetId!];
-          return next;
-        });
-      }, 3000);
-    } catch (err: any) {
-      console.error('Failed to auto-save selected media:', err);
-      alert(`Save failed: ${err?.message || 'Firebase could not save this image.'}`);
-    } finally {
-      setSavingIds(prev => ({ ...prev, [pickerTargetId!]: false }));
+    handleDraftChange(pickerTargetId, 'url', imageUrl);
+    if (altText && altText.trim() !== '') {
+      handleDraftChange(pickerTargetId, 'altText', altText);
     }
     setIsPickerOpen(false);
     setPickerTargetId(null);
@@ -244,32 +216,17 @@ export default function WebsiteMediaManager() {
     }
   };
 
-  const [uploadingTargetId, setUploadingTargetId] = useState<string | null>(null);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    const targetId = uploadTargetId;
-    if (!file || !targetId) return;
+    if (!file || !uploadTargetId) return;
 
-    setUploadingTargetId(targetId);
-    try {
-      const { url: permanentUrl } = await uploadMediaFile(file, `site-media/${targetId}`);
-      await updateSiteMediaItem(targetId, { url: permanentUrl });
-      setSavedSuccessIds(prev => ({ ...prev, [targetId!]: true }));
-      setTimeout(() => {
-        setSavedSuccessIds(prev => {
-          const next = { ...prev };
-          delete next[targetId!];
-          return next;
-        });
-      }, 3000);
-    } catch (err: any) {
-      console.error('Direct upload failed:', err);
-      alert(`Upload failed: ${err.message || 'Unknown error'}`);
-    } finally {
-      setUploadingTargetId(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      handleDraftChange(uploadTargetId, 'url', dataUrl);
       setUploadTargetId(null);
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   // Save all modified items in view
@@ -627,39 +584,13 @@ export default function WebsiteMediaManager() {
 
                     {/* Right Column: Editable Metadata & Controls */}
                     <div className="lg:col-span-8 space-y-4">
-                      {/* Public placement */}
-                      <div className="rounded-2xl border border-primary-200 bg-gradient-to-r from-primary-50/80 to-sky-50/50 p-4 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 text-primary-900 text-xs font-bold uppercase tracking-wider">
-                            <span>📍 Live Website Placement</span>
-                          </div>
-                          {item.pageRoute && (
-                            <a
-                              href={item.pageRoute}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-primary-50 text-primary-700 font-bold text-xs rounded-lg border border-primary-200 shadow-2xs transition-colors"
-                            >
-                              <Eye size={13} className="text-primary-600" />
-                              <span>View Live Section ↗</span>
-                            </a>
-                          )}
+                      {/* Description & Website placement */}
+                      {item.description && (
+                        <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/80 text-xs text-slate-600 leading-relaxed">
+                          <span className="font-semibold text-slate-800">Placement Note: </span>
+                          {item.description}
                         </div>
-                        <p className="text-xs leading-relaxed text-slate-700 font-medium">
-                          {item.description || 'This image is rendered on the public website through the centralized media registry.'}
-                        </p>
-                        <div className="pt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                          <span className="px-2 py-0.5 bg-white/80 rounded-md font-mono border border-slate-200 text-slate-700">
-                            Page: {item.pageKey}
-                          </span>
-                          <span className="px-2 py-0.5 bg-white/80 rounded-md font-mono border border-slate-200 text-slate-700">
-                            Section: {item.sectionKey}
-                          </span>
-                          <span className="px-2 py-0.5 bg-white/80 rounded-md font-mono border border-slate-200 text-slate-700">
-                            Target: {item.imageKey}
-                          </span>
-                        </div>
-                      </div>
+                      )}
 
                       {/* Active Image URL Field */}
                       <div>
