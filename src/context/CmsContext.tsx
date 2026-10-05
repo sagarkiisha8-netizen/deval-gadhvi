@@ -18,6 +18,7 @@ import {
   DEFAULT_BLOG_CATEGORIES, DEFAULT_BLOG_AUTHORS, DEFAULT_BLOG_TAGS, DEFAULT_PAGE_SEO 
 } from '../data/defaultCmsData';
 import { DEFAULT_SITE_MEDIA } from '../data/defaultSiteMedia';
+import { normalizeProviderKey } from '../utils/providerImages';
 
 interface CmsContextType {
   homeContent: HomePageContent;
@@ -277,12 +278,37 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
       // Providers Collection
       unsubscribeProviders = onSnapshot(collection(db, 'providers'), (snapshot) => {
         if (!snapshot.empty) {
-          const list: Provider[] = [];
+          const canonicalMap = new Map<string, Provider>();
           snapshot.forEach((d) => {
-            list.push({ id: d.id, ...(d.data() as any) });
+            const raw = { id: d.id, ...(d.data() as any) } as Provider;
+            const key = normalizeProviderKey(raw.id || raw.slug || raw.name || '');
+
+            // Data sanitization: Dr. Prahlad must never hold the swapped female Framer image
+            if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
+              raw.imageUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') || 
+              raw.profileImage?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') || 
+              raw.photoUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0')
+            )) {
+              raw.imageUrl = '/uploads/providers/prahlad-gadhavi-1789541233283.webp';
+              raw.profileImage = '/uploads/providers/prahlad-gadhavi-1789541233283.webp';
+              raw.photoUrl = '/uploads/providers/prahlad-gadhavi-1789541233283.webp';
+            }
+
+            if (!canonicalMap.has(key)) {
+              canonicalMap.set(key, raw);
+            } else {
+              const existing = canonicalMap.get(key)!;
+              const existingTime = new Date(existing.updatedAt || 0).getTime();
+              const currTime = new Date(raw.updatedAt || 0).getTime();
+              if (currTime > existingTime || (!existing.imageUrl && raw.imageUrl)) {
+                canonicalMap.set(key, { ...existing, ...raw });
+              }
+            }
           });
+          const list = Array.from(canonicalMap.values());
           list.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
           setProviders(list);
+          setLocalItem('newark_cms_providers', list);
         }
       }, () => {});
 
@@ -975,12 +1001,12 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
         await setDoc(doc(db, 'pages', 'contact'), {
           heroImage: updates.url
         }, { merge: true });
-      } else if (id === 'providers-dr-prahlad' && updates.url) {
-        await updateProvider('dr-prahlad-gadhvi', { imageUrl: updates.url, photoUrl: updates.url });
-      } else if (id === 'providers-dr-deval' && updates.url) {
-        await updateProvider('dr-deval-gadhvi', { imageUrl: updates.url, photoUrl: updates.url });
-      } else if (id === 'providers-dr-sankalp' && updates.url) {
-        await updateProvider('dr-sankalp-pathak', { imageUrl: updates.url, photoUrl: updates.url });
+      } else if ((id === 'providers-dr-prahlad' || id === 'provider-dr-prahlad-gadhvi') && updates.url) {
+        await updateProvider('dr-prahlad-gadhvi', { imageUrl: updates.url, photoUrl: updates.url, profileImage: updates.url });
+      } else if ((id === 'providers-dr-deval' || id === 'provider-dr-deval-gadhvi') && updates.url) {
+        await updateProvider('dr-deval-gadhvi', { imageUrl: updates.url, photoUrl: updates.url, profileImage: updates.url });
+      } else if ((id === 'providers-dr-sankalp' || id === 'provider-dr-sankalp-pathak') && updates.url) {
+        await updateProvider('dr-sankalp-pathak', { imageUrl: updates.url, photoUrl: updates.url, profileImage: updates.url });
       } else if (id.startsWith('services-') && updates.url) {
         const slug = id.replace('services-', '');
         const matched = services.find(s => s.id === slug || s.slug === slug);

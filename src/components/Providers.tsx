@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { getDb } from '../lib/firebase';
 import { useCmsData } from '../context/CmsContext';
+import { DEFAULT_PROVIDERS } from '../data/defaultCmsData';
+import { getProviderImageSrc, normalizeProviderKey } from '../utils/providerImages';
 
 export interface ProviderItem {
   id: string;
@@ -18,86 +18,61 @@ export interface ProviderItem {
   languages: string[];
 }
 
-export const providersList: ProviderItem[] = [
-  {
-    id: 'dr-prahlad-gadhvi',
-    slug: 'dr-prahlad-gadhvi',
-    name: 'Dr. Prahlad Gadhvi',
-    credentials: 'MD, Internal Medicine',
-    designation: 'Primary Care Physician',
-    specialty: 'Adult Primary Care & Diagnostic Medicine',
-    shortBio: 'Serving Newark for over two decades with dedicated preventive medicine, chronic disease management, and thorough clinical consultations.',
-    image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=85&w=1000',
-    languages: ['English', 'Spanish', 'Hindi', 'Gujarati']
-  },
-  {
-    id: 'dr-deval-gadhvi',
-    slug: 'dr-deval-gadhvi',
-    name: 'Dr. Deval Gadhvi',
-    credentials: 'MD, ABIM Board-Certified',
-    designation: 'Medical Director',
-    specialty: 'Internal Medicine & Women\'s Health',
-    shortBio: 'Compassionate clinical director focused on early preventive detection, metabolic wellness, and long-term continuity of care.',
-    image: 'https://images.unsplash.com/photo-1594824813627-2c9ffea824f9?auto=format&fit=crop&q=85&w=1000',
-    languages: ['English', 'Spanish', 'Hindi', 'Gujarati']
-  },
-  {
-    id: 'dr-sankalp-pathak',
-    slug: 'dr-sankalp-pathak',
-    name: 'Dr. Sankalp Pathak',
-    credentials: 'MD, FACC Board-Certified',
-    designation: 'Cardiology Consultant',
-    specialty: 'Cardiovascular Diagnostics & Prevention',
-    shortBio: 'Providing specialized cardiopulmonary risk assessments, in-office echocardiograms, and continuous heart health evaluations.',
-    image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=85&w=1000',
-    languages: ['English', 'Spanish', 'Hindi']
-  }
-];
-
 export default function Providers() {
-  const { providers: dynamicProviders, getMediaUrl, getSiteMedia } = useCmsData();
+  const { providers: dynamicProviders, getSiteMedia } = useCmsData();
 
-  const resolveProviderMedia = (id: string, fallbackUrl: string) => {
-    const key = id.replace('dr-', '');
-    const mediaItem = getSiteMedia('providers', 'doctors', id) ||
-      getSiteMedia('providers', 'doctors', `dr-${key}`) ||
-      getSiteMedia('providers', id, 'portrait') || 
-      getSiteMedia('providers', `dr-${key}`, 'portrait') ||
-      getSiteMedia('providers', key, 'portrait');
-    
-    let imageUrl = mediaItem?.url;
-    if (!imageUrl) {
-      imageUrl = fallbackUrl;
-    }
-    return { imageUrl, mediaItem };
-  };
+  // Deduplicate and resolve canonical provider cards for homepage display
+  const displayList = useMemo(() => {
+    const rawList = (dynamicProviders && dynamicProviders.length > 0) ? dynamicProviders : DEFAULT_PROVIDERS;
 
-  const displayList = (dynamicProviders && dynamicProviders.length > 0)
-    ? dynamicProviders.map((dp) => {
-        const staticFallback = providersList.find(p => p.id === dp.id)?.image || '';
-        const fallback = dp.imageUrl || staticFallback;
-        const resolved = resolveProviderMedia(dp.id, fallback);
-        return {
-          id: dp.id,
-          slug: dp.slug || dp.id,
-          name: dp.name,
-          credentials: dp.credentials || '',
-          designation: dp.designation || dp.title || 'Physician',
-          specialty: dp.specialty,
-          shortBio: dp.shortBio || dp.bio?.slice(0, 140) || '',
-          image: resolved.imageUrl,
-          mediaItem: resolved.mediaItem,
-          languages: dp.languages || ['English', 'Spanish']
-        };
-      })
-    : providersList.map(p => {
-        const resolved = resolveProviderMedia(p.id, p.image);
-        return {
-          ...p,
-          image: resolved.imageUrl,
-          mediaItem: resolved.mediaItem
-        };
-      });
+    // Deduplicate by normalized key (e.g. prahlad-gadhavi vs prahlad-gadhvi)
+    const canonicalMap = new Map<string, any>();
+    rawList.forEach((p) => {
+      // Exclude hidden or inactive doctors
+      if (p.showOnHomepage === false || p.isActive === false) return;
+
+      const key = normalizeProviderKey(p.id || p.slug || p.name);
+      if (!canonicalMap.has(key)) {
+        canonicalMap.set(key, p);
+      } else {
+        // Prefer record with valid image or newer update
+        const existing = canonicalMap.get(key);
+        const existingTime = new Date(existing.updatedAt || 0).getTime();
+        const currTime = new Date(p.updatedAt || 0).getTime();
+        if (currTime > existingTime || (!existing.imageUrl && p.imageUrl)) {
+          canonicalMap.set(key, { ...existing, ...p });
+        }
+      }
+    });
+
+    const dedupedList = Array.from(canonicalMap.values());
+    // Sort by displayOrder
+    dedupedList.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+
+    return dedupedList.map((dp) => {
+      const canonicalKey = normalizeProviderKey(dp.id || dp.slug || dp.name);
+      const mediaItem = getSiteMedia('providers', 'doctors', dp.id) ||
+        getSiteMedia('providers', 'doctors', `dr-${canonicalKey}`) ||
+        getSiteMedia('providers', dp.id, 'portrait');
+
+      // Resolve strictly using centralized provider images with homepage override priority
+      const image = getProviderImageSrc(dp, { forHomepage: true });
+
+      return {
+        id: dp.id,
+        slug: dp.slug || dp.id,
+        name: dp.name,
+        credentials: dp.credentials || 'MD',
+        designation: dp.designation || dp.title || 'Physician',
+        specialty: dp.specialty || 'Internal Medicine',
+        shortBio: dp.shortBio || dp.bio?.slice(0, 140) || '',
+        image,
+        altText: dp.altText || mediaItem?.altText || dp.name,
+        mediaItem,
+        languages: dp.languages || ['English', 'Spanish']
+      };
+    });
+  }, [dynamicProviders, getSiteMedia]);
 
   return (
     <section id="providers" className="bg-[#FCFBF8] py-16 sm:py-24 lg:py-32 border-b border-[#D9D0C5] overflow-hidden">
@@ -145,7 +120,7 @@ export default function Providers() {
               <div className="relative aspect-[4/5] overflow-hidden mb-5 sm:mb-6 bg-[#F4EFE6] rounded-xs">
                 <img
                   src={docItem.image}
-                  alt={docItem.mediaItem?.altText || docItem.name}
+                  alt={docItem.altText}
                   className="w-full h-full group-hover:scale-104 transition-transform duration-700 filter grayscale-[12%] group-hover:grayscale-0"
                   style={{
                     objectFit: (docItem.mediaItem?.objectFit as any) || 'cover',

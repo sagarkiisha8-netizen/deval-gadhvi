@@ -114,11 +114,19 @@ export interface Provider {
   name: string;
   credentials: string; // e.g. "MD, FACP"
   title: string; // e.g. "Chief of Internal Medicine"
+  designation?: string; // alias for title
   specialty: string; // e.g. "Internal Medicine & Preventive Cardiology"
   bio: string;
+  shortBio?: string;
   fullBio?: string;
   imageUrl: string;
   photoUrl?: string;
+  image?: string;
+  profileImage?: string;
+  homepageImageOverride?: string;
+  altText?: string;
+  showOnHomepage?: boolean;
+  showOnProvidersPage?: boolean;
   experienceYears?: number;
   education?: string[];
   certifications?: string[];

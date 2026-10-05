@@ -165,11 +165,11 @@ export default function DoctorProfileManager() {
       };
 
       await setDoc(doc(db, 'providers', 'dr-prahlad-gadhvi'), providerSyncData, { merge: true });
-      await setDoc(doc(db, 'providers', 'dr-prahlad-gadhavi'), {
-        ...providerSyncData,
-        id: 'dr-prahlad-gadhavi',
-        slug: 'dr-prahlad-gadhavi'
-      }, { merge: true });
+      try {
+        await deleteDoc(doc(db, 'providers', 'dr-prahlad-gadhavi'));
+      } catch (delErr) {
+        // non-blocking
+      }
 
       try {
         await logAdminActivity(

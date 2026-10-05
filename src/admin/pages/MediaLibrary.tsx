@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Upload, Search, Image as ImageIcon, Trash2, Copy, 
   Check, ExternalLink, Filter, Plus, FileText, AlertCircle, 
-  Loader2, RefreshCw 
+  Loader2, RefreshCw, Compass
 } from 'lucide-react';
 import { 
   collection, onSnapshot, addDoc, deleteDoc, doc, 
@@ -10,8 +10,10 @@ import {
 } from 'firebase/firestore';
 import { getDb } from '../../lib/firebase';
 import { MediaItem } from '../../types';
+import { useCmsData } from '../../context/CmsContext';
 
 export default function MediaLibrary() {
+  const { siteMedia, providers } = useCmsData();
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,6 +25,37 @@ export default function MediaLibrary() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Compute where selected media item is currently referenced on the live website
+  const usageReferences = useMemo(() => {
+    if (!selectedItem?.url) return [];
+    const list: { label: string; pageRoute: string }[] = [];
+    const targetUrl = selectedItem.url.split('?')[0];
+
+    // Check siteMedia registry
+    Object.values(siteMedia).forEach(item => {
+      if (item.url && item.url.split('?')[0] === targetUrl) {
+        list.push({
+          label: `${item.label} (${item.pageKey})`,
+          pageRoute: item.pageRoute || `/${item.pageKey === 'homepage' ? '' : item.pageKey}`
+        });
+      }
+    });
+
+    // Check providers
+    providers.forEach(p => {
+      if ((p.imageUrl && p.imageUrl.split('?')[0] === targetUrl) ||
+          (p.profileImage && p.profileImage.split('?')[0] === targetUrl) ||
+          (p.homepageImageOverride && p.homepageImageOverride.split('?')[0] === targetUrl)) {
+        list.push({
+          label: `Provider Profile: ${p.name}`,
+          pageRoute: `/providers/${p.slug || p.id}`
+        });
+      }
+    });
+
+    return list;
+  }, [selectedItem, siteMedia, providers]);
 
   const DEFAULT_STOCK_IMAGES: MediaItem[] = [
     {
@@ -406,6 +439,48 @@ export default function MediaLibrary() {
                     )}
                   </button>
                 </div>
+              </div>
+
+              {/* Where is this image used on the website? (Traceability) */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Compass size={13} className="text-primary-600" />
+                    <span>Website Usage & Traceability</span>
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    usageReferences.length > 0 
+                      ? 'bg-emerald-100 text-emerald-800' 
+                      : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {usageReferences.length > 0 ? `${usageReferences.length} Location(s)` : 'Unassigned'}
+                  </span>
+                </div>
+
+                {usageReferences.length > 0 ? (
+                  <div className="space-y-1.5 pt-1">
+                    {usageReferences.map((ref, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs bg-white p-2 rounded-xl border border-slate-200">
+                        <span className="font-medium text-slate-700 truncate pr-2" title={ref.label}>
+                          {ref.label}
+                        </span>
+                        <a
+                          href={ref.pageRoute}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary-600 hover:text-primary-800 shrink-0 font-semibold inline-flex items-center gap-1"
+                        >
+                          <span>View</span>
+                          <ExternalLink size={10} />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    This file is stored in your Media Library but is not currently active on any live section of the website.
+                  </p>
+                )}
               </div>
 
               {/* Delete Action */}

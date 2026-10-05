@@ -5,6 +5,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { getDb } from '../lib/firebase';
 import SeoHead from '../components/SeoHead';
 import { useCmsData } from '../context/CmsContext';
+import { getProviderImage } from '../utils/providerImages';
 
 interface DoctorDetailData {
   name: string;
@@ -24,7 +25,7 @@ const DEFAULT_DOCTOR_DATA: Record<string, DoctorDetailData> = {
   'dr-prahlad-gadhvi': {
     name: 'Dr. Prahlad Gadhavi',
     role: 'Primary Care Physician',
-    image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
+    image: '/uploads/providers/prahlad-gadhavi-1789541233283.webp',
     experience: '20 years',
     qualifications: 'MBBS, MD',
     location: '337, Bloomfield Avenue, Newark, NJ-07107',
@@ -45,7 +46,7 @@ const DEFAULT_DOCTOR_DATA: Record<string, DoctorDetailData> = {
   'dr-prahlad-gadhavi': {
     name: 'Dr. Prahlad Gadhavi',
     role: 'Primary Care Physician',
-    image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800',
+    image: '/uploads/providers/prahlad-gadhavi-1789541233283.webp',
     experience: '20 years',
     qualifications: 'MBBS, MD',
     location: '337, Bloomfield Avenue, Newark, NJ-07107',
@@ -66,7 +67,7 @@ const DEFAULT_DOCTOR_DATA: Record<string, DoctorDetailData> = {
   'dr-deval-gadhvi': {
     name: 'Dr. Deval Gadhvi',
     role: 'Medical Director - Primary Care Physician',
-    image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=800',
+    image: 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
     experience: '18 years',
     qualifications: 'MBBS, MD',
     location: '337, Bloomfield Avenue, Newark, NJ-07107',
@@ -86,7 +87,7 @@ const DEFAULT_DOCTOR_DATA: Record<string, DoctorDetailData> = {
   'dr-sankalp-pathak': {
     name: 'Dr. Sankalp Pathak',
     role: 'Cardiology Consultant',
-    image: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=800',
+    image: '/uploads/site-media/providers-dr-sankalp.png',
     experience: '15 years',
     qualifications: 'MD, FACC',
     location: '337, Bloomfield Avenue, Newark, NJ-07107',
@@ -206,12 +207,8 @@ export default function ProviderDetailPage() {
       getMediaUrl('providers', (slug || '').replace('dr-', ''), 'portrait');
 
     const effectivePhoto = 
-      cmsSiteMediaUrl ||
-      dynamicProvider?.photoUrl || 
-      dynamicProvider?.imageUrl || 
-      dynamicProvider?.image ||
-      (isPrahlad ? (liveDoctorPhoto || liveDoctorProfile?.photoUrl) : undefined) ||
-      defaultDoctor.image;
+      (isPrahlad && (liveDoctorPhoto || liveDoctorProfile?.photoUrl)) ||
+      getProviderImage(dynamicProvider || defaultDoctor);
 
     if (dynamicProvider) {
       return {

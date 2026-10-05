@@ -216,17 +216,39 @@ export default function WebsiteMediaManager() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !uploadTargetId) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      handleDraftChange(uploadTargetId, 'url', dataUrl);
-      setUploadTargetId(null);
-    };
-    reader.readAsDataURL(file);
+    let finalUrl = '';
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`/.netlify/functions/upload-provider-image?providerId=${encodeURIComponent(uploadTargetId)}`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.imageUrl) {
+          finalUrl = json.imageUrl;
+        }
+      }
+    } catch (err) {
+      console.warn('R2 upload endpoint fallback in media manager:', err);
+    }
+
+    if (!finalUrl) {
+      finalUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    handleDraftChange(uploadTargetId, 'url', finalUrl);
+    setUploadTargetId(null);
   };
 
   // Save all modified items in view

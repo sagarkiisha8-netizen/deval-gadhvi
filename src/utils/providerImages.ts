@@ -4,16 +4,19 @@
  * Rules:
  * 1. Admin Panel saved image ALWAYS takes precedence.
  * 2. Fallbacks are strictly keyed by provider ID / slug — NEVER by index or other provider.
- * 3. Cache-busting parameter (?v=timestamp) is appended if updatedAt exists.
+ * 3. Cross-doctor photo contamination is strictly prevented (e.g. Dr. Deval's photo never assigned to Dr. Prahlad).
+ * 4. Cache-busting parameter (?v=timestamp) is appended if updatedAt exists.
  */
 
 export const DEFAULT_PROVIDER_IMAGES: Record<string, string> = {
-  'prahlad-gadhavi': 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
-  'deval-gadhvi': '/newark_internal_medicine_4.webp',
-  'sankalp-pathak': 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=800',
+  'prahlad-gadhavi': '/uploads/providers/prahlad-gadhavi-1789541233283.webp',
+  'prahlad-gadhvi': '/uploads/providers/prahlad-gadhavi-1789541233283.webp',
+  'deval-gadhvi': 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
+  'deval-gadhavi': 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
+  'sankalp-pathak': '/uploads/site-media/providers-dr-sankalp.png',
 };
 
-export const GENERIC_DOCTOR_PLACEHOLDER = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=800';
+export const GENERIC_DOCTOR_PLACEHOLDER = '/uploads/site-media/providers-dr-sankalp.png';
 
 /**
  * Normalizes any provider id, slug, or name to canonical provider keys:
@@ -31,60 +34,85 @@ export function normalizeProviderKey(idOrSlugOrName: string = ''): string {
 
 /**
  * Resolves the canonical image URL for a provider following strict priority:
- * 1. Admin Panel / Database saved image (provider.image, imageUrl, or photoUrl)
- * 2. Correct provider-specific default image (keyed strictly by slug / id)
- * 3. Generic neutral doctor placeholder
+ * 1. Homepage override if requesting for homepage (provider.homepageImageOverride)
+ * 2. Admin Panel / Database saved image (provider.profileImage, imageUrl, photoUrl, etc.)
+ * 3. Correct provider-specific default authentic image (keyed strictly by slug / id)
+ * 4. Generic neutral doctor placeholder
  */
-export function getProviderImage(provider: any): string {
+export function getProviderImage(provider: any, options?: { forHomepage?: boolean }): string {
   if (!provider) return GENERIC_DOCTOR_PLACEHOLDER;
 
   // Direct string passed
   if (typeof provider === 'string' && provider.trim() !== '') {
     const trimmed = provider.trim();
-    // If a name like "Dr. Deval Gadhvi" or "deval-gadhvi" is passed directly
+    const key = normalizeProviderKey(trimmed);
+
+    // If a doctor name or slug was passed directly
     if (!trimmed.startsWith('http') && !trimmed.startsWith('/') && !trimmed.startsWith('data:')) {
-      const key = normalizeProviderKey(trimmed);
       if (DEFAULT_PROVIDER_IMAGES[key]) {
         return DEFAULT_PROVIDER_IMAGES[key];
       }
     }
-    // Check if it's an old generic unsplash placeholder for a known doctor
-    const key = normalizeProviderKey(trimmed);
-    if (DEFAULT_PROVIDER_IMAGES[key] && (trimmed.includes('photo-1622253692010') || trimmed.includes('photo-1594824813581') || trimmed.includes('photo-1594824813627'))) {
+
+    // Check if it's the reversed female framer photo incorrectly passed for Dr. Prahlad
+    if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && trimmed.includes('aU1QUlSKO9mpYg2rCyxW7d2q0')) {
+      return DEFAULT_PROVIDER_IMAGES['prahlad-gadhavi'];
+    }
+
+    // Check if it's an outdated generic unsplash placeholder for a known doctor
+    if (DEFAULT_PROVIDER_IMAGES[key] && (
+      trimmed.includes('photo-1622253692010') || 
+      trimmed.includes('photo-1594824813581') || 
+      trimmed.includes('photo-1594824813627') ||
+      trimmed.includes('photo-1559839734')
+    )) {
       return DEFAULT_PROVIDER_IMAGES[key];
     }
     return trimmed;
   }
 
-  // 1. Admin Panel / database saved image
-  const rawImage = provider.image || provider.imageUrl || provider.photoUrl || provider.photo || provider.avatar || provider.profilePhoto;
+  const key = normalizeProviderKey(provider.id || provider.slug || provider.name || '');
+
+  // 1. Homepage override if requested for homepage
+  if (options?.forHomepage && provider.homepageImageOverride && typeof provider.homepageImageOverride === 'string' && provider.homepageImageOverride.trim() !== '') {
+    return provider.homepageImageOverride.trim();
+  }
+
+  // 2. Admin Panel / database saved image (profileImage || imageUrl || photoUrl || image)
+  const rawImage = provider.profileImage || provider.imageUrl || provider.photoUrl || provider.image || provider.photo || provider.avatar || provider.profilePhoto;
+  
   if (rawImage && typeof rawImage === 'string' && rawImage.trim() !== '') {
     const rawTrimmed = rawImage.trim();
-    // If it's an outdated generic unsplash placeholder for a known doctor, prioritize the real portrait
-    const key = normalizeProviderKey(provider.id || provider.slug || provider.name || '');
-    if (DEFAULT_PROVIDER_IMAGES[key] && (rawTrimmed.includes('photo-1622253692010') || rawTrimmed.includes('photo-1594824813581') || rawTrimmed.includes('photo-1594824813627'))) {
+
+    // Prevent cross-contamination: Dr. Prahlad must NEVER have Dr. Deval's female Framer photo
+    if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && rawTrimmed.includes('aU1QUlSKO9mpYg2rCyxW7d2q0')) {
+      return DEFAULT_PROVIDER_IMAGES['prahlad-gadhavi'];
+    }
+
+    // Outdated stock photos for Dr. Deval or Dr. Prahlad replaced by their authentic portraits
+    if (DEFAULT_PROVIDER_IMAGES[key] && (
+      rawTrimmed.includes('photo-1622253692010') || 
+      rawTrimmed.includes('photo-1594824813581') || 
+      rawTrimmed.includes('photo-1594824813627') ||
+      rawTrimmed.includes('photo-1559839734')
+    )) {
       return DEFAULT_PROVIDER_IMAGES[key];
     }
+
     return rawTrimmed;
   }
 
-  // 2. Correct provider-specific default image
-  const key = normalizeProviderKey(provider.id || provider.slug || provider.name || '');
+  // 3. Correct provider-specific default authentic image
   if (DEFAULT_PROVIDER_IMAGES[key]) {
     return DEFAULT_PROVIDER_IMAGES[key];
   }
 
-  // 3. Generic neutral doctor placeholder
+  // 4. Generic neutral doctor placeholder
   return GENERIC_DOCTOR_PLACEHOLDER;
 }
 
 /**
  * Dynamically resolves the avatar photo for any blog author or medical reviewer.
- * Priority:
- * 1. Matching Provider in the database (if author is a clinic doctor like Dr. Deval Gadhvi, Dr. Prahlad Gadhavi, etc.)
- * 2. Saved custom author profile photo (if not an outdated generic placeholder)
- * 3. Canonical default clinic photo for the specific doctor
- * 4. Generic doctor placeholder
  */
 export function getAuthorAvatar(author: any, providers?: any[], authors?: any[]): string {
   if (!author) return GENERIC_DOCTOR_PLACEHOLDER;
@@ -99,9 +127,7 @@ export function getAuthorAvatar(author: any, providers?: any[], authors?: any[])
     const matchedAuthor = authors.find(a => (authorId && a.id === authorId) || (authorName && a.name?.toLowerCase().trim() === authorName.toLowerCase().trim()));
     if (matchedAuthor && matchedAuthor.profilePhoto && typeof matchedAuthor.profilePhoto === 'string' && matchedAuthor.profilePhoto.trim() !== '') {
       const authImg = matchedAuthor.profilePhoto.trim();
-      // If the author has a custom photo that isn't the generic placeholder, use it!
-      if (!authImg.includes('photo-1622253692010') && !authImg.includes('photo-1594824813581') && !authImg.includes('photo-1594824813627')) {
-        // Only return if it's not the default provider image either, OR if we want to allow it anyway
+      if (!authImg.includes('photo-1622253692010') && !authImg.includes('photo-1594824813581') && !authImg.includes('photo-1594824813627') && !authImg.includes('photo-1559839734')) {
         return authImg;
       }
     }
@@ -114,21 +140,15 @@ export function getAuthorAvatar(author: any, providers?: any[], authors?: any[])
       return pKey === canonicalKey;
     });
     if (matchedProvider) {
-      const pImg = matchedProvider.image || matchedProvider.imageUrl || matchedProvider.photoUrl;
-      if (pImg && typeof pImg === 'string' && pImg.trim() !== '') {
-        const trimmed = pImg.trim();
-        // If not an outdated generic unsplash placeholder
-        if (!trimmed.includes('photo-1622253692010')) {
-          return trimmed;
-        }
-      }
+      const pImg = getProviderImage(matchedProvider);
+      if (pImg) return pImg;
     }
   }
 
   // 3. If rawAvatar was provided and is a valid customized URL
   if (rawAvatar && typeof rawAvatar === 'string' && rawAvatar.trim() !== '') {
     const trimmed = rawAvatar.trim();
-    if (!trimmed.includes('photo-1622253692010') && !trimmed.includes('photo-1594824813581') && !trimmed.includes('photo-1594824813627')) {
+    if (!trimmed.includes('photo-1622253692010') && !trimmed.includes('photo-1594824813581') && !trimmed.includes('photo-1594824813627') && !trimmed.includes('photo-1559839734')) {
       return trimmed;
     }
   }
@@ -144,8 +164,8 @@ export function getAuthorAvatar(author: any, providers?: any[], authors?: any[])
 /**
  * Resolves image source with cache busting token from updatedAt if available
  */
-export function getProviderImageSrc(provider: any): string {
-  const baseImage = getProviderImage(provider);
+export function getProviderImageSrc(provider: any, options?: { forHomepage?: boolean }): string {
+  const baseImage = getProviderImage(provider, options);
   if (!baseImage) return GENERIC_DOCTOR_PLACEHOLDER;
   
   // Data URIs do not need cache-busting

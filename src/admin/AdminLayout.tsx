@@ -30,18 +30,20 @@ const SIDEBAR_GROUPS: NavGroup[] = [
     ]
   },
   {
-    groupTitle: 'Doctor & Clinical Content',
+    groupTitle: 'Website Content & Team',
     items: [
-      { name: 'Doctor Profile', path: '/admin/doctor-profile', icon: UserCheck },
-      { name: 'Conditions & Treatments', path: '/admin/conditions', icon: Stethoscope },
+      { name: 'Providers & Doctors', path: '/admin/providers', icon: Users },
+      { name: 'Homepage Editor', path: '/admin/pages/home', icon: FileText },
       { name: 'Clinical Services', path: '/admin/services', icon: Activity },
+      { name: 'Conditions & Treatments', path: '/admin/conditions', icon: Stethoscope },
+      { name: 'Patient Reviews', path: '/admin/pages/testimonials', icon: MessageSquareQuote },
       { name: 'Patient FAQs', path: '/admin/faqs', icon: HelpCircle },
-      { name: 'Clinic Locations', path: '/admin/locations', icon: MapPin },
       { name: 'Media & Awards Gallery', path: '/admin/gallery', icon: ImageIcon },
+      { name: 'All Pages Directory', path: '/admin/page-directory', icon: FolderKanban },
     ]
   },
   {
-    groupTitle: 'Blog & Patient Education',
+    groupTitle: 'Blog & Patient Library',
     items: [
       { name: 'All Blog Articles', path: '/admin/blogs', icon: BookOpen },
       { name: 'Write New Post', path: '/admin/blogs/new', icon: PenSquare },
@@ -51,23 +53,10 @@ const SIDEBAR_GROUPS: NavGroup[] = [
     ]
   },
   {
-    groupTitle: 'Website CMS & Pages',
+    groupTitle: 'Media & Website Images',
     items: [
-      { name: 'All Pages Directory', path: '/admin/page-directory', icon: FolderKanban },
-      { name: 'Homepage Editor', path: '/admin/pages/home', icon: FileText },
-      { name: 'About Practice', path: '/admin/pages/about', icon: FileText },
-      { name: 'Diagnostics Page', path: '/admin/pages/diagnostics', icon: FileText },
-      { name: 'Patient Journey', path: '/admin/pages/process', icon: Compass },
-      { name: 'Patient Reviews', path: '/admin/pages/testimonials', icon: MessageSquareQuote },
-      { name: 'Contact & Location', path: '/admin/pages/contact', icon: FileText },
-      { name: 'Popups & Alerts', path: '/admin/popups', icon: Bell },
-    ]
-  },
-  {
-    groupTitle: 'Website Media Control',
-    items: [
-      { name: 'Website Media Manager', path: '/admin/media-manager', icon: ImageIcon },
-      { name: 'Global Media Library', path: '/admin/media', icon: FileImage },
+      { name: 'Website Images (CMS)', path: '/admin/media-manager', icon: ImageIcon },
+      { name: 'Media Library (Uploads)', path: '/admin/media', icon: FileImage },
       { name: 'Header Navigation', path: '/admin/layout/header', icon: Sliders },
       { name: 'Footer Settings', path: '/admin/layout/footer', icon: Sliders },
     ]
@@ -75,9 +64,9 @@ const SIDEBAR_GROUPS: NavGroup[] = [
   {
     groupTitle: 'System & Security',
     items: [
+      { name: 'Practice Settings', path: '/admin/settings', icon: Settings },
       { name: 'SEO & Meta Tags', path: '/admin/seo', icon: Search },
       { name: 'Traffic Analytics', path: '/admin/analytics', icon: LineChart },
-      { name: 'Practice Settings', path: '/admin/settings', icon: Settings },
       { name: 'Staff Users & Roles', path: '/admin/users', icon: ShieldCheck },
       { name: 'Audit Trail & Logs', path: '/admin/audit-logs', icon: History },
     ]

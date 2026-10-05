@@ -15,9 +15,7 @@ export default function ProvidersPage() {
       const defKey = normalizeProviderKey(def.id || def.slug);
       const cmsDoc = cmsProviders.find((p) => normalizeProviderKey(p.id || p.slug) === defKey);
       
-      const mediaId = `providers-${defKey === 'prahlad-gadhavi' ? 'dr-prahlad' : defKey === 'deval-gadhvi' ? 'dr-deval' : 'dr-sankalp'}`;
-      const centralizedImage = siteMedia?.[mediaId]?.url;
-      const resolvedImage = centralizedImage || getProviderImage(cmsDoc || def);
+      const resolvedImage = getProviderImage(cmsDoc || def);
       const item = {
         ...def,
         name: cmsDoc?.name || def.name,
