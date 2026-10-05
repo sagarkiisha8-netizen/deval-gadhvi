@@ -128,7 +128,7 @@ export default function ContactPage() {
       <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-12 py-12 sm:py-16 lg:py-20">
         
         {/* Mode Selector Tabs (Editorial Text Buttons) */}
-        <div className="flex items-center gap-6 sm:gap-8 mb-10 sm:mb-12 border-b border-[#D9D0C5] pb-4">
+        <div className="flex items-center gap-6 sm:gap-8 mb-10 sm:mb-12 border-b border-[#D9D0C5] pb-4 overflow-x-auto no-scrollbar whitespace-nowrap">
           <button
             type="button"
             onClick={() => setActiveTab('appointment')}

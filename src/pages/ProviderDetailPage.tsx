@@ -245,7 +245,7 @@ export default function ProviderDetailPage() {
       />
 
       {/* Top Main Profile Section */}
-      <section className="pt-28 pb-6 sm:pt-32 sm:pb-8">
+      <section className="pt-8 pb-6 sm:pt-12 sm:pb-8">
         <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-10 lg:gap-14 items-start">
             
@@ -296,38 +296,38 @@ export default function ProviderDetailPage() {
 
               {/* Two-Column Details Grid */}
               <div className="space-y-4 text-sm sm:text-[15px]">
-                <div className="grid grid-cols-12 gap-4 items-baseline">
-                  <span className="col-span-4 sm:col-span-3 text-slate-900 font-normal">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-1 sm:gap-4 items-baseline">
+                  <span className="sm:col-span-3 text-slate-900 font-normal">
                     Experience
                   </span>
-                  <span className="col-span-8 sm:col-span-9 text-slate-600 font-normal">
+                  <span className="sm:col-span-9 text-slate-600 font-normal">
                     {doctor.experience}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-12 gap-4 items-baseline">
-                  <span className="col-span-4 sm:col-span-3 text-slate-900 font-normal">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-1 sm:gap-4 items-baseline">
+                  <span className="sm:col-span-3 text-slate-900 font-normal">
                     Qualifications
                   </span>
-                  <span className="col-span-8 sm:col-span-9 text-slate-600 font-normal">
+                  <span className="sm:col-span-9 text-slate-600 font-normal">
                     {doctor.qualifications}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-12 gap-4 items-baseline">
-                  <span className="col-span-4 sm:col-span-3 text-slate-900 font-normal">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-1 sm:gap-4 items-baseline">
+                  <span className="sm:col-span-3 text-slate-900 font-normal">
                     Location
                   </span>
-                  <span className="col-span-8 sm:col-span-9 text-slate-600 font-normal">
+                  <span className="sm:col-span-9 text-slate-600 font-normal">
                     {doctor.location}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-12 gap-4 items-baseline">
-                  <span className="col-span-4 sm:col-span-3 text-slate-900 font-normal">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-1 sm:gap-4 items-baseline">
+                  <span className="sm:col-span-3 text-slate-900 font-normal">
                     Phone No.
                   </span>
-                  <span className="col-span-8 sm:col-span-9 text-slate-600 font-normal">
+                  <span className="sm:col-span-9 text-slate-600 font-normal">
                     <a 
                       href={`tel:${doctor.phone.replace(/[^0-9]/g, '')}`} 
                       className="hover:text-blue-600 transition-colors"
@@ -337,11 +337,11 @@ export default function ProviderDetailPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-12 gap-4 items-baseline">
-                  <span className="col-span-4 sm:col-span-3 text-slate-900 font-normal">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-1 sm:gap-4 items-baseline">
+                  <span className="sm:col-span-3 text-slate-900 font-normal">
                     Email Id
                   </span>
-                  <span className="col-span-8 sm:col-span-9 text-slate-600 font-normal">
+                  <span className="sm:col-span-9 text-slate-600 font-normal">
                     <a 
                       href={`mailto:${doctor.email}`} 
                       className="hover:text-blue-600 transition-colors"

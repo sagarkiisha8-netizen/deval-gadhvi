@@ -206,13 +206,13 @@ export default function Services() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-40px' }}
             transition={{ duration: 0.65, delay: 0.15 }}
-            className="lg:col-span-7 bg-[#0B1F2A] text-[#FCFBF8] border border-[#0B1F2A] flex flex-col sm:flex-row overflow-hidden group shadow-editorial hover:shadow-editorial-lg transition-shadow duration-300"
+            className="lg:col-span-7 bg-[#0B1F2A] text-[#FCFBF8] border border-[#0B1F2A] flex flex-col md:flex-row overflow-hidden group shadow-editorial hover:shadow-editorial-lg transition-shadow duration-300"
           >
-            <div className="sm:w-1/2 relative min-h-[200px] sm:min-h-[240px]">
+            <div className="md:w-1/2 relative min-h-[200px] sm:min-h-[240px] md:min-h-full">
               <img
                 src={diagnosticsImg}
                 alt={diagnosticsMedia?.altText || 'Onsite cardiopulmonary diagnostic equipment'}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 style={{
                   objectFit: (diagnosticsMedia?.objectFit as any) || 'cover',
                   objectPosition: diagnosticsMedia?.position || 'center'
@@ -221,7 +221,7 @@ export default function Services() {
               />
             </div>
 
-            <div className="sm:w-1/2 p-6 sm:p-10 flex flex-col justify-between">
+            <div className="md:w-1/2 p-6 sm:p-10 flex flex-col justify-between">
               <div>
                 <span className="text-[#B39A68] text-[11.5px] sm:text-[12px] font-bold uppercase tracking-widest block mb-2">
                   05 • In-House Testing

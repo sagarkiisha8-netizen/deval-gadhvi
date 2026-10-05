@@ -49,21 +49,22 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 left-0 right-0 z-50 w-full transition-shadow duration-300">
       {/* TOP UTILITY BAR: Midnight Navy */}
-      <div className="bg-[#0B1F2A] text-[#D9D0C5] h-[30px] px-4 sm:px-6 lg:px-7 flex items-center justify-between text-[11.5px] sm:text-[12px] font-medium tracking-wide border-b border-[#0B1F2A]/60">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#B39A68] animate-pulse shrink-0" />
-          <span className="truncate">Newark, New Jersey</span>
+      <div className="bg-[#0B1F2A] text-[#D9D0C5] h-[30px] px-3 sm:px-6 lg:px-7 flex items-center justify-between text-[11px] sm:text-[12px] font-medium tracking-wide border-b border-[#0B1F2A]/60">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#B39A68] animate-pulse shrink-0" aria-hidden="true" />
+          <span className="truncate text-[10.5px] sm:text-[11.5px]">Newark, NJ</span>
           <span className="hidden sm:inline text-[#B39A68]/60 shrink-0">•</span>
           <span className="hidden sm:inline text-[#D9D0C5]/80 truncate">337 Bloomfield Ave</span>
         </div>
-        <div>
+        <div className="shrink-0">
           <a
             href={`tel:${NEWARK_PRACTICE_INFO.rawPhone}`}
-            className="hover:text-white transition-colors flex items-center gap-1.5 font-medium py-1"
+            className="hover:text-white transition-colors flex items-center gap-1 sm:gap-1.5 font-medium py-1 min-h-[30px]"
+            aria-label={`Call ${NEWARK_PRACTICE_INFO.phone}`}
           >
-            <Phone size={13} className="text-[#B39A68]" />
-            <span className="hidden xs:inline">Call</span>
-            <span className="text-white font-semibold">{NEWARK_PRACTICE_INFO.phone}</span>
+            <Phone size={12} className="text-[#B39A68] shrink-0" />
+            <span className="hidden xs:inline text-[10.5px] sm:text-[11.5px]">Call</span>
+            <span className="text-white font-semibold text-[10.5px] sm:text-[11.5px]">{NEWARK_PRACTICE_INFO.phone}</span>
           </a>
         </div>
       </div>
@@ -134,6 +135,7 @@ export default function Navbar() {
       </div>
 
       {/* Animated Mobile Drawer Menu */}
+      {/* top = utility-bar(30px) + header(76px mobile / 80px sm / 82px md) */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
@@ -141,9 +143,9 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="lg:hidden fixed inset-x-0 top-[106px] sm:top-[110px] md:top-[112px] bottom-0 bg-[#F4EFE6] z-50 flex flex-col justify-between p-6 sm:p-8 overflow-y-auto border-t border-[#D9D0C5] shadow-2xl"
+            className="lg:hidden fixed inset-x-0 top-[106px] sm:top-[110px] md:top-[112px] bottom-0 bg-[#F4EFE6] z-50 flex flex-col justify-between px-5 sm:px-8 pt-4 sm:pt-6 overflow-y-auto border-t border-[#D9D0C5] shadow-2xl"
           >
-            <nav className="flex flex-col gap-1 pt-2">
+            <nav className="flex flex-col gap-0.5 pt-1">
               {navLinks.map((link, idx) => (
                 <motion.div
                   key={link.name}
@@ -153,14 +155,15 @@ export default function Navbar() {
                 >
                   <NavLink
                     to={link.href}
+                    end={link.href === '/'}
                     className={({ isActive }) =>
-                      `min-h-[48px] text-xl sm:text-2xl font-serif py-3 border-b border-[#D9D0C5]/50 flex items-center justify-between transition-colors ${
+                      `min-h-[52px] text-[22px] sm:text-2xl font-serif py-3 border-b border-[#D9D0C5]/50 flex items-center justify-between transition-colors ${
                         isActive ? 'text-[#0B1F2A] font-bold pl-1' : 'text-[#252A2B]/80 hover:text-[#0B1F2A]'
                       }`
                     }
                   >
                     <span>{link.name}</span>
-                    <ArrowRight size={18} className="text-[#B39A68]" />
+                    <ArrowRight size={18} className="text-[#B39A68] shrink-0" />
                   </NavLink>
                 </motion.div>
               ))}
@@ -170,17 +173,18 @@ export default function Navbar() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25, duration: 0.3 }}
-              className="mt-8 pt-6 border-t border-[#D9D0C5] flex flex-col gap-3 pb-8"
+              className="mt-6 pt-5 border-t border-[#D9D0C5] flex flex-col gap-3"
+              style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}
             >
               <Link
                 to="/appointments"
-                className="w-full min-h-[48px] flex items-center justify-center py-3.5 text-center bg-[#0B1F2A] hover:bg-[#153444] text-white font-semibold uppercase tracking-wider text-[14px] transition-colors"
+                className="w-full min-h-[52px] flex items-center justify-center py-3.5 text-center bg-[#0B1F2A] hover:bg-[#153444] text-white font-semibold uppercase tracking-wider text-[14px] transition-colors"
               >
                 Book Appointment
               </Link>
               <a
                 href={`tel:${NEWARK_PRACTICE_INFO.rawPhone}`}
-                className="w-full min-h-[48px] flex items-center justify-center py-3 text-center border border-[#0B1F2A] text-[#0B1F2A] hover:bg-[#0B1F2A]/5 font-semibold uppercase tracking-wider text-[13px] transition-colors"
+                className="w-full min-h-[52px] flex items-center justify-center py-3 text-center border border-[#0B1F2A] text-[#0B1F2A] hover:bg-[#0B1F2A]/5 font-semibold uppercase tracking-wider text-[13px] transition-colors"
               >
                 Call {NEWARK_PRACTICE_INFO.phone}
               </a>

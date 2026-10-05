@@ -149,17 +149,17 @@ export default function Footer() {
         </div>
 
         {/* Bottom Legal & Accreditation */}
-        <div className="pt-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-[13px] text-[#9EAAA7]">
-          <p>
+        <div className="pt-10 flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-4 text-[12px] sm:text-[13px] text-[#9EAAA7] text-center sm:text-left">
+          <p className="max-w-[280px] sm:max-w-none mx-auto sm:mx-0">
             © {new Date().getFullYear()} Newark Medical Associates LLC. All rights reserved.
           </p>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-6 gap-y-2">
             <span>HIPAA Compliant Practice</span>
-            <span>•</span>
+            <span className="hidden xs:inline">•</span>
             <Link to="/patient-resources" className="hover:text-white transition-colors">
               Privacy Notice
             </Link>
-            <span>•</span>
+            <span className="hidden xs:inline">•</span>
             <Link to="/contact" className="hover:text-white transition-colors">
               Accessibility
             </Link>

@@ -165,7 +165,7 @@ export default function Hero() {
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.55, delay: 0.25, ease: 'easeOut' }}
-                className="flex flex-col xs:flex-row items-stretch xs:items-center gap-3.5 sm:gap-4 mb-8 sm:mb-10"
+                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 sm:gap-4 mb-8 sm:mb-10"
               >
                 {/* Primary Button: Dark Navy Filled */}
                 <button
