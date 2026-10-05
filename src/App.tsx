@@ -52,6 +52,7 @@ import ProvidersManager from './admin/pages/ProvidersManager';
 import ServicesManager from './admin/pages/ServicesManager';
 import MediaLibrary from './admin/pages/MediaLibrary';
 import WebsiteMediaManager from './admin/pages/WebsiteMediaManager';
+import WebsiteImagesManager from './admin/pages/WebsiteImagesManager';
 import TestimonialsManager from './admin/pages/TestimonialsManager';
 
 // Page-by-Page CMS Editors
@@ -192,10 +193,11 @@ export default function App() {
 
             <Route path="providers" element={<ProvidersManager />} />
             <Route path="services" element={<ServicesManager />} />
-            <Route path="media" element={<MediaLibrary />} />
-            <Route path="page-images" element={<WebsiteMediaManager />} />
-            <Route path="media-manager" element={<WebsiteMediaManager />} />
-            <Route path="website-media" element={<WebsiteMediaManager />} />
+            <Route path="website-images" element={<WebsiteImagesManager />} />
+            <Route path="media" element={<WebsiteImagesManager />} />
+            <Route path="page-images" element={<WebsiteImagesManager />} />
+            <Route path="media-manager" element={<WebsiteImagesManager />} />
+            <Route path="website-media" element={<WebsiteImagesManager />} />
             
             {/* CMS Page Editors */}
             <Route path="pages/home" element={<HomePageCms />} />

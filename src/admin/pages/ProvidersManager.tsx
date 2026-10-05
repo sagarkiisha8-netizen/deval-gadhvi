@@ -296,6 +296,17 @@ export default function ProvidersManager() {
     }
   };
 
+  const handleToggleHomepage = async (p: Provider) => {
+    try {
+      const db = getDb();
+      const nextVal = p.showOnHomepage === false;
+      await setDoc(doc(db, 'providers', p.id), { showOnHomepage: nextVal, updatedAt: serverTimestamp() }, { merge: true });
+      setProviders(prev => prev.map(item => item.id === p.id ? { ...item, showOnHomepage: nextVal } : item));
+    } catch (e) {
+      console.error('Toggle homepage error:', e);
+    }
+  };
+
   const filtered = providers.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.specialty.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -452,57 +463,83 @@ export default function ProvidersManager() {
                 </div>
 
                 {/* Actions Footer */}
-                <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleActive(provider)}
-                    className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                      provider.isActive 
-                        ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
-                        : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                    }`}
-                  >
-                    {provider.isActive ? <Eye size={12} /> : <EyeOff size={12} />}
-                    <span>{provider.isActive ? 'Active' : 'Hidden'}</span>
-                  </button>
-
-                  <div className="flex items-center gap-2">
+                <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col gap-2.5">
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => handleOpenEdit(provider)}
-                      className="p-1.5 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors cursor-pointer"
-                      title="Edit provider profile & photos"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:border-primary-400 hover:bg-primary-50 text-slate-800 hover:text-primary-700 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
                     >
-                      <Edit2 size={15} />
+                      <Edit2 size={13} />
+                      <span>Edit Profile</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(provider)}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-primary-50 border border-primary-200 hover:bg-primary-100 text-primary-700 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                    >
+                      <ImageIcon size={13} />
+                      <span>Change Photo</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleHomepage(provider)}
+                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                        provider.showOnHomepage !== false
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                          : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'
+                      }`}
+                      title="Toggle visibility on Homepage"
+                    >
+                      <span>Homepage: {provider.showOnHomepage !== false ? 'Shown' : 'Hidden'}</span>
                     </button>
 
-                    {deleteConfirmId === provider.id ? (
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(provider.id)}
-                          className="px-2 py-1 bg-red-600 text-white rounded text-xs font-bold cursor-pointer"
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirmId(null)}
-                          className="p-1 text-slate-500 hover:text-slate-700 cursor-pointer"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setDeleteConfirmId(provider.id)}
-                        className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-colors cursor-pointer"
-                        title="Delete provider"
+                        onClick={() => handleToggleActive(provider)}
+                        className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg transition-colors cursor-pointer ${
+                          provider.isActive 
+                            ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' 
+                            : 'bg-amber-100 text-amber-800'
+                        }`}
+                        title="Toggle Active status"
                       >
-                        <Trash2 size={15} />
+                        {provider.isActive ? <Eye size={12} /> : <EyeOff size={12} />}
+                        <span>{provider.isActive ? 'Active' : 'Draft'}</span>
                       </button>
-                    )}
+
+                      {deleteConfirmId === provider.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(provider.id)}
+                            className="px-2 py-1 bg-red-600 text-white rounded text-xs font-bold cursor-pointer"
+                          >
+                            Del
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirmId(null)}
+                            className="p-1 text-slate-500 hover:text-slate-700 cursor-pointer"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirmId(provider.id)}
+                          className="p-1.5 hover:bg-red-50 text-red-500 rounded-lg transition-colors cursor-pointer"
+                          title="Delete provider"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

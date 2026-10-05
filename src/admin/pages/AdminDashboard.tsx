@@ -63,22 +63,11 @@ export default function AdminDashboard() {
   const publishedBlogsCount = blogs.filter(b => b.status === 'published').length;
   const draftBlogsCount = blogs.filter(b => b.status === 'draft').length;
 
-  const quickShortcuts = [
-    { name: 'Medical Blog & Articles', path: '/admin/blogs', icon: BookOpen, desc: 'Write, publish, schedule health posts & SEO' },
-    { name: 'Medical Authors & Reviewers', path: '/admin/blog-authors', icon: UserCheck, desc: 'Manage doctor credentials, bios & NPI' },
-    { name: 'Clinical Categories & Tags', path: '/admin/blog-categories', icon: Layers, desc: 'Cardiovascular, wellness & taxonomy' },
-    { name: 'Doctor Profile Manager', path: '/admin/doctor-profile', icon: UserCheck, desc: 'Credentials, fees, timings & biography' },
-    { name: 'Conditions & Treatments', path: '/admin/conditions', icon: Stethoscope, desc: 'Hypertension, diabetes & clinical guides' },
-    { name: 'Patient Appointments', path: '/admin/appointments', icon: Calendar, desc: 'View bookings, verify slots, export CSV' },
-    { name: 'Calendar Schedule', path: '/admin/calendar', icon: CalendarDays, desc: 'Weekly provider consult schedule' },
-    { name: 'Patient FAQs', path: '/admin/faqs', icon: HelpCircle, desc: 'Insurance, Medicare, labs & new patient info' },
-    { name: 'Clinic Locations', path: '/admin/locations', icon: MapPin, desc: 'Newark offices, maps & transit directions' },
-    { name: 'Photo & Awards Gallery', path: '/admin/gallery', icon: ImageIcon, desc: 'Clinic suites, awards & certifications' },
-    { name: 'Popups & Announcements', path: '/admin/popups', icon: Bell, desc: 'Prominent alerts, hours & clinic notices' },
-    { name: 'All Pages Directory', path: '/admin/page-directory', icon: FolderKanban, desc: 'Instant links to all page CMS editors' },
-    { name: 'Homepage CMS Editor', path: '/admin/pages/home', icon: FileText, desc: 'Hero banners, statistics & trust badges' },
-    { name: 'Security Audit Logs', path: '/admin/audit-logs', icon: History, desc: 'Login events, content changes & activity trail' },
-    { name: 'Practice Settings & GA4', path: '/admin/settings', icon: Settings, desc: 'NPI, hours, phone, address & analytics' },
+  const primaryActions = [
+    { name: 'Edit Homepage', path: '/admin/pages/home', icon: FileText, desc: 'Update hero, medical team, clinic sections' },
+    { name: 'Manage Providers', path: '/admin/providers', icon: UserCheck, desc: 'Doctors, credentials, specialties & photos' },
+    { name: 'Manage Website Images', path: '/admin/website-images', icon: ImageIcon, desc: 'Central image manager for the entire site' },
+    { name: 'Write Blog', path: '/admin/blogs/new', icon: PenSquare, desc: 'Publish clinical guides & patient health articles' },
   ];
 
   return (
@@ -205,15 +194,18 @@ export default function AdminDashboard() {
         </Link>
       </div>
 
-      {/* Quick CMS Action Shortcuts */}
+      {/* Quick Actions */}
       <div className="space-y-3">
-        <h2 className="text-base font-bold text-slate-900">Clinical & Website Management Hub</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-slate-900">Essential Quick Actions</h2>
+          <span className="text-xs text-slate-500">Daily management shortcuts</span>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {quickShortcuts.map((item) => (
+          {primaryActions.map((item) => (
             <Link
               key={item.name}
               to={item.path}
-              className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md hover:border-primary-300 transition-all flex items-center gap-3.5 group"
+              className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-primary-400 transition-all flex items-center gap-3.5 group"
             >
               <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center shrink-0 group-hover:bg-primary-600 group-hover:text-white transition-colors">
                 <item.icon size={18} />
