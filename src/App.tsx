@@ -85,7 +85,7 @@ import MobileFloatingBar from './components/MobileFloatingBar';
 
 function PublicLayout() {
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-primary-100 selection:text-primary-900 bg-white text-slate-900 pb-16 md:pb-0">
+    <div data-public-theme="premium-editorial-v1" className="min-h-screen flex flex-col font-sans selection:bg-primary-100 selection:text-primary-900 bg-[#FCFBF8] text-[#252A2B] pb-16 md:pb-0">
       <ScrollToTop />
       <AnnouncementPopup />
       <Navbar />
@@ -193,6 +193,7 @@ export default function App() {
             <Route path="providers" element={<ProvidersManager />} />
             <Route path="services" element={<ServicesManager />} />
             <Route path="media" element={<MediaLibrary />} />
+            <Route path="page-images" element={<WebsiteMediaManager />} />
             <Route path="media-manager" element={<WebsiteMediaManager />} />
             <Route path="website-media" element={<WebsiteMediaManager />} />
             

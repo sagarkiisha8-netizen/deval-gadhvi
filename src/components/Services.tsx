@@ -16,11 +16,11 @@ export interface DisplayService {
 export default function Services() {
   const { getMediaUrl, getSiteMedia } = useCmsData();
 
-  const primaryCareMedia = getSiteMedia('services', 'primary-care', 'card-image');
-  const primaryCareImg = getMediaUrl('services', 'primary-care', 'card-image', 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=1200');
+  const primaryCareMedia = getSiteMedia('homepage', 'services', 'primary-care');
+  const primaryCareImg = getMediaUrl('homepage', 'services', 'primary-care') || 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=1200';
 
-  const diagnosticsMedia = getSiteMedia('services', 'diagnostics', 'card-image');
-  const diagnosticsImg = getMediaUrl('services', 'diagnostics', 'card-image', 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=800');
+  const diagnosticsMedia = getSiteMedia('homepage', 'services', 'diagnostics');
+  const diagnosticsImg = getMediaUrl('homepage', 'services', 'diagnostics') || 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=800';
   return (
     <section id="services" className="bg-[#FCFBF8] py-16 sm:py-24 lg:py-32 overflow-hidden">
       <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-12">

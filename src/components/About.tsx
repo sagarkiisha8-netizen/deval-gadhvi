@@ -5,9 +5,8 @@ import { useCmsData } from '../context/CmsContext';
 
 export default function About() {
   const { getMediaUrl, getSiteMedia } = useCmsData();
-  const mediaItem = getSiteMedia('about', 'facility', 'main') || getSiteMedia('home', 'about', 'image');
-  const imageUrl = getMediaUrl('about', 'facility', 'main') || 
-    getMediaUrl('home', 'about', 'image') || 
+  const mediaItem = getSiteMedia('homepage', 'aboutPreview', 'featured');
+  const imageUrl = getMediaUrl('homepage', 'aboutPreview', 'featured') || 
     "https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=1200";
 
   return (

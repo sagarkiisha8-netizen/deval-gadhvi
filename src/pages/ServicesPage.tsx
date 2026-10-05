@@ -3,7 +3,6 @@ import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import SeoHead from '../components/SeoHead';
-import { NEWARK_PRACTICE_INFO } from '../data/localSeoData';
 import { useCmsData } from '../context/CmsContext';
 
 interface DetailedService {
@@ -211,12 +210,10 @@ export default function ServicesPage() {
                     <div className={`lg:col-span-5 ${isEven ? 'lg:order-1' : 'lg:order-2'}`}>
                       {(() => {
                         const cmsService = services?.find(s => s.slug === service.slug || s.id === service.id);
-                        const dynamicMedia = getSiteMedia('services', service.slug, 'card-image') || 
-                          getSiteMedia('services', service.slug, 'hero-image') || 
-                          getSiteMedia('services', service.id, 'card-image');
-                        const dynamicUrl = getMediaUrl('services', service.slug, 'card-image') || 
-                          getMediaUrl('services', service.slug, 'hero-image') || 
-                          getMediaUrl('services', service.id, 'card-image') || 
+                        const dynamicMedia = getSiteMedia('services', 'service-item', service.slug) || 
+                          getSiteMedia('services', 'service-item', service.slug.replace(/s$/, ''));
+                        const dynamicUrl = getMediaUrl('services', 'service-item', service.slug) || 
+                          getMediaUrl('services', 'service-item', service.slug.replace(/s$/, '')) || 
                           cmsService?.imageUrl || 
                           service.image;
                         return (
@@ -290,38 +287,6 @@ export default function ServicesPage() {
         </div>
       </section>
 
-      {/* 4. Practice Booking Banner */}
-      <section className="bg-[#0B1F2A] text-[#FCFBF8] py-16 sm:py-24">
-        <div className="max-w-[1100px] mx-auto px-4 sm:px-6 lg:px-12 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-40px' }}
-            transition={{ duration: 0.6 }}
-          >
-            <h3 className="font-serif text-[30px] sm:text-[44px] lg:text-[54px] leading-[1.08] mb-4 sm:mb-6">
-              Need an appointment this week?
-            </h3>
-            <p className="font-sans text-[15.5px] sm:text-[18px] text-[#D9D0C5] max-w-xl mx-auto leading-[1.65] sm:leading-[1.7] mb-8 sm:mb-10">
-              Our clinic offers convenient same-week and same-day availability for adult primary care, diagnostics, and urgent visits.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4">
-              <Link
-                to="/appointments"
-                className="w-full sm:w-auto px-8 py-4 bg-[#B39A68] hover:bg-[#c4ab79] text-[#0B1F2A] font-bold uppercase tracking-wider text-[13.5px] sm:text-[14px] transition-colors min-h-[48px] flex items-center justify-center"
-              >
-                Book an Appointment
-              </Link>
-              <a
-                href={`tel:${NEWARK_PRACTICE_INFO.rawPhone}`}
-                className="w-full sm:w-auto px-7 py-4 border border-[#FCFBF8]/40 hover:border-[#FCFBF8] text-[#FCFBF8] font-semibold uppercase tracking-wider text-[13.5px] sm:text-[14px] transition-colors min-h-[48px] flex items-center justify-center"
-              >
-                Call (973) 412-9404
-              </a>
-            </div>
-          </motion.div>
-        </div>
-      </section>
     </div>
   );
 }

@@ -6,9 +6,8 @@ import { useCmsData } from '../context/CmsContext';
 
 export default function CarePhilosophy() {
   const { homeContent, getMediaUrl, getSiteMedia } = useCmsData();
-  const mediaItem = getSiteMedia('home', 'philosophy', 'lifestyle-image') || getSiteMedia('home', 'philosophy', 'image');
-  const philosophyImage = getMediaUrl('home', 'philosophy', 'lifestyle-image') || 
-    getMediaUrl('home', 'philosophy', 'image') || 
+  const mediaItem = getSiteMedia('homepage', 'philosophy', 'portrait');
+  const philosophyImage = getMediaUrl('homepage', 'philosophy', 'portrait') || 
     (homeContent as any)?.philosophyImage || 
     (homeContent as any)?.hero?.philosophyImageUrl || 
     "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&q=85&w=1400";

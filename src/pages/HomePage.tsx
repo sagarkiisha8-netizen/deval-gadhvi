@@ -4,17 +4,11 @@ import Hero from '../components/Hero';
 import EditorialIntro from '../components/EditorialIntro';
 import Services from '../components/Services';
 import EditorialAboutSection from '../components/EditorialAboutSection';
-import Diagnostics from '../components/Diagnostics';
 import Providers from '../components/Providers';
 import CarePhilosophy from '../components/CarePhilosophy';
 import FullWidthImageBreak from '../components/FullWidthImageBreak';
 import Process from '../components/Process';
-import WhyChooseUs from '../components/WhyChooseUs';
-import Testimonials from '../components/Testimonials';
-import ResourcesEditorial from '../components/ResourcesEditorial';
-import BlogPreviewSection from '../components/BlogPreviewSection';
 import FAQ from '../components/FAQ';
-import AppointmentCtaSection from '../components/AppointmentCtaSection';
 
 export default function HomePage() {
   const homeFaqs = [
@@ -74,38 +68,21 @@ export default function HomePage() {
       {/* 4. About Section: Full-Width Dark Navy (#0B1F2A), Landscape Photo, 3 Editorial Columns */}
       <EditorialAboutSection />
 
-      {/* 5. In-Office Diagnostics: High-End Laboratory & Cardiac Screening */}
-      <Diagnostics />
-
-      {/* 6. Providers: Large 4:5 Portrait Photography, No White Box or Borders */}
+      {/* 5. Providers: Large 4:5 Portrait Photography, No White Box or Borders */}
       <Providers />
 
-      {/* 7. Care Philosophy: Split Layout with Lifestyle Image & 3 Principles */}
+      {/* 6. Care Philosophy: Split Layout with Lifestyle Image & 3 Principles */}
       <CarePhilosophy />
 
-      {/* 8. Full-Width Image Break: Cinematic 500px Image Break */}
+      {/* 7. Full-Width Image Break: Cinematic 500px Image Break */}
       <FullWidthImageBreak />
 
-      {/* 9. Patient Journey: Horizontal Timeline with Connecting Lines, No Boxes */}
+      {/* 8. Patient Journey: Horizontal Timeline */}
       <Process />
 
-      {/* 10. Why Choose Us: Two-Column Editorial Layout with 4 Stacked Rows */}
-      <WhyChooseUs />
-
-      {/* 11. Testimonials: Full Dark Forest Green (#315B52) Single Large Quote */}
-      <Testimonials />
-
-      {/* 12. Resources: Large Horizontal Link Rows, No Boxes */}
-      <ResourcesEditorial />
-
-      {/* 13. Blog Preview: Magazine Layout (1 Large + 2 Side) */}
-      <BlogPreviewSection />
-
-      {/* 14. FAQ: Clean Editorial Accordion */}
+      {/* 9. FAQ: Clean Editorial Accordion */}
       <FAQ />
 
-      {/* 15. Final CTA: Warm Ivory with Integrated Lifestyle Image */}
-      <AppointmentCtaSection />
     </div>
   );
 }

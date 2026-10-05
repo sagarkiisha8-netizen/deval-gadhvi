@@ -5,9 +5,8 @@ import { useCmsData } from '../context/CmsContext';
 
 export default function FullWidthImageBreak() {
   const { homeContent, getMediaUrl, getSiteMedia } = useCmsData();
-  const mediaItem = getSiteMedia('home', 'break', 'banner') || getSiteMedia('home', 'fullWidth', 'image');
-  const bannerImage = getMediaUrl('home', 'break', 'banner') || 
-    getMediaUrl('home', 'fullWidth', 'image') || 
+  const mediaItem = getSiteMedia('homepage', 'fullwidth', 'interior');
+  const bannerImage = getMediaUrl('homepage', 'fullwidth', 'interior') || 
     (homeContent as any)?.fullWidthImage || 
     (homeContent as any)?.hero?.fullWidthImageUrl || 
     "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=85&w=2400";

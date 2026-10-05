@@ -6,9 +6,8 @@ import { useCmsData } from '../context/CmsContext';
 
 export default function EditorialAboutSection() {
   const { homeContent, getMediaUrl, getSiteMedia } = useCmsData();
-  const mediaItem = getSiteMedia('home', 'about', 'preview-image') || getSiteMedia('home', 'aboutPreview', 'image');
-  const aboutImage = getMediaUrl('home', 'about', 'preview-image') || 
-    getMediaUrl('home', 'aboutPreview', 'image') || 
+  const mediaItem = getSiteMedia('homepage', 'aboutPreview', 'featured');
+  const aboutImage = getMediaUrl('homepage', 'aboutPreview', 'featured') || 
     homeContent?.aboutPreview?.imageUrl || 
     homeContent?.aboutPreview?.image || 
     "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&q=85&w=2000";
