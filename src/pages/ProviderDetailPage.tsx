@@ -5,7 +5,8 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { getDb } from '../lib/firebase';
 import SeoHead from '../components/SeoHead';
 import { useCmsData } from '../context/CmsContext';
-import { getProviderImage } from '../utils/providerImages';
+import { DEFAULT_PROVIDERS } from '../data/defaultCmsData';
+import { getProviderImage, normalizeProviderKey } from '../utils/providerImages';
 
 interface DoctorDetailData {
   name: string;
@@ -21,93 +22,68 @@ interface DoctorDetailData {
   specialities: string[];
 }
 
-const DEFAULT_DOCTOR_DATA: Record<string, DoctorDetailData> = {
-  'dr-prahlad-gadhvi': {
-    name: 'Dr. Prahlad Gadhavi',
-    role: 'Primary Care Physician',
-    image: '/uploads/providers/prahlad-gadhavi-1789541233283.webp',
-    experience: '20 years',
-    qualifications: 'MBBS, MD',
+/**
+ * Build DoctorDetailData from the canonical DEFAULT_PROVIDERS array.
+ * This is the SINGLE SOURCE OF TRUTH for provider data.
+ * Both the homepage (Providers.tsx) and this detail page read from the
+ * same DEFAULT_PROVIDERS record, so the image — and every other field —
+ * are always consistent across the site.
+ */
+function getDefaultDoctorData(normalizedSlug: string): DoctorDetailData | null {
+  // Try to find by normalized key
+  const canonicalKey = normalizeProviderKey(normalizedSlug);
+  const found = DEFAULT_PROVIDERS.find((p) => {
+    return (
+      normalizeProviderKey(p.id) === canonicalKey ||
+      normalizeProviderKey(p.slug) === canonicalKey ||
+      normalizeProviderKey(p.name) === canonicalKey
+    );
+  }) || DEFAULT_PROVIDERS.find((p) => {
+    // Fallback: fuzzy match the slug itself
+    const pKey = normalizeProviderKey(p.id || p.slug || p.name);
+    return normalizedSlug.includes(pKey) || pKey.includes(canonicalKey);
+  });
+
+  if (!found) return null;
+
+  // Canonical image from the provider record (already correct in DEFAULT_PROVIDERS)
+  const image = getProviderImage(found);
+
+  return {
+    name: found.name,
+    role: found.title || found.specialty || 'Physician',
+    image,
+    experience: found.experienceYears ? `${found.experienceYears} years` : '',
+    qualifications: found.credentials || 'MD',
     location: '337, Bloomfield Avenue, Newark, NJ-07107',
-    phone: '(973) 412-9404',
-    email: 'medicalnewark@gmail.com',
-    about: "Dr. Prahlad Gadhavi is a board-certified Internal Medicine Specialist at Newark Medical Associates. He earned his bachelor's degree in Medicine and Surgery at B.J. Medical College in Ahmedabad, graduating with honors in 2003. He completed his residency in Internal Medicine at Mount Sinai and Beth Israel Medical Centers in New York City.",
-    experienceDetail: 'With more than 20 years of diverse experience in Internal Medicine, Dr. Gadhavi has built a strong reputation for providing compassionate and comprehensive care. His patients trust him for his thorough approach and commitment to helping them understand their treatment options.',
-    specialities: [
-      'Annual & preventative physical exams',
-      'Acute/same-day urgent care visits',
-      'Chronic disease management (hypertension, diabetes, etc.)',
-      'Blood testing & lab work',
-      'EKG & basic cardiac risk screening',
-      'Pre-operative exams',
-      'Specialist referral coordination'
-    ]
-  },
-  'dr-prahlad-gadhavi': {
-    name: 'Dr. Prahlad Gadhavi',
-    role: 'Primary Care Physician',
-    image: '/uploads/providers/prahlad-gadhavi-1789541233283.webp',
-    experience: '20 years',
-    qualifications: 'MBBS, MD',
-    location: '337, Bloomfield Avenue, Newark, NJ-07107',
-    phone: '(973) 412-9404',
-    email: 'medicalnewark@gmail.com',
-    about: "Dr. Prahlad Gadhavi is a board-certified Internal Medicine Specialist at Newark Medical Associates. He earned his bachelor's degree in Medicine and Surgery at B.J. Medical College in Ahmedabad, graduating with honors in 2003. He completed his residency in Internal Medicine at Mount Sinai and Beth Israel Medical Centers in New York City.",
-    experienceDetail: 'With more than 20 years of diverse experience in Internal Medicine, Dr. Gadhavi has built a strong reputation for providing compassionate and comprehensive care. His patients trust him for his thorough approach and commitment to helping them understand their treatment options.',
-    specialities: [
-      'Annual & preventative physical exams',
-      'Acute/same-day urgent care visits',
-      'Chronic disease management (hypertension, diabetes, etc.)',
-      'Blood testing & lab work',
-      'EKG & basic cardiac risk screening',
-      'Pre-operative exams',
-      'Specialist referral coordination'
-    ]
-  },
-  'dr-deval-gadhvi': {
-    name: 'Dr. Deval Gadhvi',
-    role: 'Medical Director - Primary Care Physician',
-    image: 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
-    experience: '18 years',
-    qualifications: 'MBBS, MD',
-    location: '337, Bloomfield Avenue, Newark, NJ-07107',
-    phone: '(973) 412-9404',
-    email: 'medicalnewark@gmail.com',
-    about: 'Dr. Deval Gadhvi is a board-certified Internal Medicine Specialist and Medical Director at Newark Medical Associates. She has dedicated her career to preventative healthcare, chronic metabolic management, and comprehensive women’s health.',
-    experienceDetail: 'With over 18 years of clinical leadership and clinical excellence, Dr. Deval Gadhvi is widely respected for her empathetic patient listening, personalized treatment strategies, and proactive wellness programs.',
-    specialities: [
-      'Comprehensive adult primary care',
-      'Women’s wellness & annual examinations',
-      'Metabolic syndrome & weight management',
-      'Hypertension & diabetes therapeutic care',
-      'In-office laboratory & screening coordination',
-      'Long-term preventative wellness'
-    ]
-  },
-  'dr-sankalp-pathak': {
-    name: 'Dr. Sankalp Pathak',
-    role: 'Cardiology Consultant',
-    image: '/uploads/site-media/providers-dr-sankalp.png',
-    experience: '15 years',
-    qualifications: 'MD, FACC',
-    location: '337, Bloomfield Avenue, Newark, NJ-07107',
-    phone: '(973) 412-9404',
-    email: 'medicalnewark@gmail.com',
-    about: 'Dr. Sankalp Pathak is a board-certified Cardiologist and clinical consultant at Newark Medical Associates, focusing on non-invasive cardiovascular imaging and proactive cardiac disease prevention.',
-    experienceDetail: 'With 15 years of specialized cardiology practice, Dr. Pathak brings advanced diagnostic evaluation, stress testing, and echocardiography to our outpatient Newark clinic.',
-    specialities: [
-      'Comprehensive cardiac risk assessments',
-      '12-lead EKG interpretation & monitoring',
-      'Echocardiogram (ECHO) ultrasound diagnostics',
-      'Hypertension & dyslipidemia management',
-      'Pre-operative cardiac clearances'
-    ]
-  }
+    phone: found.phone || '(973) 412-9404',
+    email: found.email || 'medicalnewark@gmail.com',
+    about: found.bio || found.fullBio || '',
+    experienceDetail: found.fullBio || found.bio || '',
+    specialities: (found.specialties && found.specialties.length > 0)
+      ? found.specialties
+      : (found.specialty ? [found.specialty] : ['Internal Medicine'])
+  };
+}
+
+/** Fallback for completely unknown slugs */
+const FALLBACK_DOCTOR_DATA: DoctorDetailData = {
+  name: 'Our Physician',
+  role: 'Primary Care Physician',
+  image: '/uploads/providers/prahlad-gadhavi-1789541233283.webp',
+  experience: '',
+  qualifications: 'MD',
+  location: '337, Bloomfield Avenue, Newark, NJ-07107',
+  phone: '(973) 412-9404',
+  email: 'medicalnewark@gmail.com',
+  about: '',
+  experienceDetail: '',
+  specialities: ['Internal Medicine', 'Primary Care']
 };
 
 export default function ProviderDetailPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { providers, getMediaUrl, getSiteMedia } = useCmsData();
+  const { providers, getSiteMedia } = useCmsData();
 
   // Normalize slug
   const normalizedSlug = useMemo(() => {
@@ -195,19 +171,20 @@ export default function ProviderDetailPage() {
     ) || null;
   }, [providers, slug, normalizedSlug, isPrahlad]);
 
-  const defaultDoctor = DEFAULT_DOCTOR_DATA[normalizedSlug] || DEFAULT_DOCTOR_DATA['dr-prahlad-gadhavi'];
+  // Derive default doctor data from DEFAULT_PROVIDERS (canonical single source of truth)
+  const defaultDoctor = useMemo(
+    () => getDefaultDoctorData(normalizedSlug) || FALLBACK_DOCTOR_DATA,
+    [normalizedSlug]
+  );
 
   // Final doctor data merged with CMS and live photo
   const doctor: DoctorDetailData = useMemo(() => {
-    const cmsSiteMediaUrl = getMediaUrl('providers', 'doctors', normalizedSlug) ||
-      getMediaUrl('providers', 'doctors', (slug || '').replace('dr-', '')) ||
-      getMediaUrl('providers', 'doctors', slug || '') ||
-      getMediaUrl('providers', normalizedSlug, 'portrait') ||
-      getMediaUrl('providers', slug || '', 'portrait') ||
-      getMediaUrl('providers', (slug || '').replace('dr-', ''), 'portrait');
+    // For Dr. Prahlad: also check live Firestore/localStorage photo upload
+    const livePhotoForPrahlad = isPrahlad && (liveDoctorPhoto || liveDoctorProfile?.photoUrl);
 
-    const effectivePhoto = 
-      (isPrahlad && (liveDoctorPhoto || liveDoctorProfile?.photoUrl)) ||
+    // Effective photo: live uploaded photo (Prahlad only) → CMS provider image → default image
+    const effectivePhoto =
+      livePhotoForPrahlad ||
       getProviderImage(dynamicProvider || defaultDoctor);
 
     if (dynamicProvider) {
@@ -221,7 +198,7 @@ export default function ProviderDetailPage() {
         phone: (isPrahlad && liveDoctorProfile?.phone) || dynamicProvider.phone || defaultDoctor.phone,
         email: (isPrahlad && liveDoctorProfile?.email) || dynamicProvider.email || defaultDoctor.email,
         about: (isPrahlad && liveDoctorProfile?.biography) || dynamicProvider.fullBio || dynamicProvider.bio || defaultDoctor.about,
-        experienceDetail: defaultDoctor.experienceDetail,
+        experienceDetail: dynamicProvider.fullBio || dynamicProvider.bio || defaultDoctor.experienceDetail,
         specialities: dynamicProvider.specialties && dynamicProvider.specialties.length > 0 
           ? dynamicProvider.specialties 
           : ((isPrahlad && liveDoctorProfile?.expertise) || defaultDoctor.specialities)

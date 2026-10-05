@@ -130,6 +130,7 @@ export interface Provider {
   experienceYears?: number;
   education?: string[];
   certifications?: string[];
+  specialties?: string[];
   languages?: string[];
   insuranceAccepted?: string[];
   rating?: number;

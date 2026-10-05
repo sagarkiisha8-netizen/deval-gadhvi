@@ -11,8 +11,8 @@
 export const DEFAULT_PROVIDER_IMAGES: Record<string, string> = {
   'prahlad-gadhavi': '/uploads/providers/prahlad-gadhavi-1789541233283.webp',
   'prahlad-gadhvi': '/uploads/providers/prahlad-gadhavi-1789541233283.webp',
-  'deval-gadhvi': 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
-  'deval-gadhavi': 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194',
+  'deval-gadhvi': '/newark_internal_medicine_3.webp',
+  'deval-gadhavi': '/newark_internal_medicine_3.webp',
   'sankalp-pathak': '/uploads/site-media/providers-dr-sankalp.png',
 };
 
@@ -55,16 +55,26 @@ export function getProviderImage(provider: any, options?: { forHomepage?: boolea
     }
 
     // Check if it's the reversed female framer photo incorrectly passed for Dr. Prahlad
-    if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && trimmed.includes('aU1QUlSKO9mpYg2rCyxW7d2q0')) {
+    if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
+      trimmed.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
+      trimmed.includes('newark_internal_medicine_3') ||
+      trimmed.includes('newark_internal_medicine_4')
+    )) {
       return DEFAULT_PROVIDER_IMAGES['prahlad-gadhavi'];
     }
 
-    // Check if it's an outdated generic unsplash placeholder for a known doctor
+    // Prevent cross-contamination: Dr. Deval must NEVER have Dr. Prahlad's photo
+    if ((key === 'deval-gadhvi' || key === 'deval-gadhavi') && trimmed.includes('prahlad-gadhavi')) {
+      return DEFAULT_PROVIDER_IMAGES['deval-gadhvi'];
+    }
+
+    // Outdated generic stock photos for a known doctor
     if (DEFAULT_PROVIDER_IMAGES[key] && (
       trimmed.includes('photo-1622253692010') || 
       trimmed.includes('photo-1594824813581') || 
       trimmed.includes('photo-1594824813627') ||
-      trimmed.includes('photo-1559839734')
+      trimmed.includes('photo-1559839734') ||
+      trimmed.includes('photo-1638202993928')
     )) {
       return DEFAULT_PROVIDER_IMAGES[key];
     }
@@ -84,9 +94,18 @@ export function getProviderImage(provider: any, options?: { forHomepage?: boolea
   if (rawImage && typeof rawImage === 'string' && rawImage.trim() !== '') {
     const rawTrimmed = rawImage.trim();
 
-    // Prevent cross-contamination: Dr. Prahlad must NEVER have Dr. Deval's female Framer photo
-    if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && rawTrimmed.includes('aU1QUlSKO9mpYg2rCyxW7d2q0')) {
+    // Prevent cross-contamination: Dr. Prahlad must NEVER have Dr. Deval's photos
+    if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
+      rawTrimmed.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
+      rawTrimmed.includes('newark_internal_medicine_3') ||
+      rawTrimmed.includes('newark_internal_medicine_4')
+    )) {
       return DEFAULT_PROVIDER_IMAGES['prahlad-gadhavi'];
+    }
+
+    // Prevent cross-contamination: Dr. Deval must NEVER have Dr. Prahlad's photo
+    if ((key === 'deval-gadhvi' || key === 'deval-gadhavi') && rawTrimmed.includes('prahlad-gadhavi')) {
+      return DEFAULT_PROVIDER_IMAGES['deval-gadhvi'];
     }
 
     // Outdated stock photos for Dr. Deval or Dr. Prahlad replaced by their authentic portraits
@@ -94,7 +113,8 @@ export function getProviderImage(provider: any, options?: { forHomepage?: boolea
       rawTrimmed.includes('photo-1622253692010') || 
       rawTrimmed.includes('photo-1594824813581') || 
       rawTrimmed.includes('photo-1594824813627') ||
-      rawTrimmed.includes('photo-1559839734')
+      rawTrimmed.includes('photo-1559839734') ||
+      rawTrimmed.includes('photo-1638202993928')
     )) {
       return DEFAULT_PROVIDER_IMAGES[key];
     }

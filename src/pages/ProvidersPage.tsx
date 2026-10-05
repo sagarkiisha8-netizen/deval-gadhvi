@@ -7,40 +7,48 @@ import { DEFAULT_PROVIDERS } from '../data/defaultCmsData';
 import { getProviderImage, getProviderImageSrc, normalizeProviderKey } from '../utils/providerImages';
 
 export default function ProvidersPage() {
-  const { providers: cmsProviders, siteMedia } = useCmsData();
+  const { providers: cmsProviders } = useCmsData();
 
-  // Build provider list: DEFAULT_PROVIDERS as base, merged with CMS data strictly by id/slug
+  // Build provider list: DEFAULT_PROVIDERS as base, merged with CMS data strictly by canonical key
   const providers = useMemo(() => {
-    return DEFAULT_PROVIDERS.map((def) => {
-      const defKey = normalizeProviderKey(def.id || def.slug);
-      const cmsDoc = cmsProviders.find((p) => normalizeProviderKey(p.id || p.slug) === defKey);
-      
-      const resolvedImage = getProviderImage(cmsDoc || def);
-      const item = {
-        ...def,
-        name: cmsDoc?.name || def.name,
-        title: cmsDoc?.title || def.title,
+    const canonicalMap = new Map<string, any>();
+
+    // 1. Seed with DEFAULT_PROVIDERS for complete clinical metadata
+    DEFAULT_PROVIDERS.forEach((def) => {
+      const defKey = normalizeProviderKey(def.id || def.slug || def.name);
+      canonicalMap.set(defKey, { ...def });
+    });
+
+    // 2. Merge in CMS providers
+    if (Array.isArray(cmsProviders) && cmsProviders.length > 0) {
+      cmsProviders.forEach((doc) => {
+        if (!doc) return;
+        const key = normalizeProviderKey(doc.id || doc.slug || doc.name);
+        const existing = canonicalMap.get(key) || {};
+        canonicalMap.set(key, { ...existing, ...doc });
+      });
+    }
+
+    const list = Array.from(canonicalMap.values());
+    list.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+
+    return list.map((p) => {
+      const resolvedImage = getProviderImage(p);
+      return {
+        ...p,
         image: resolvedImage,
         imageUrl: resolvedImage,
-        bio: cmsDoc?.fullBio || cmsDoc?.bio || def.bio,
-        fullBio: cmsDoc?.fullBio || def.fullBio,
-        specialties: (cmsDoc as any)?.specialties?.length ? (cmsDoc as any).specialties : def.specialties,
-        languages: cmsDoc?.languages?.length ? cmsDoc.languages : def.languages,
-        updatedAt: (cmsDoc as any)?.updatedAt || (def as any)?.updatedAt,
+        profileImage: resolvedImage,
+        photoUrl: resolvedImage,
+        bio: p.fullBio || p.bio || '',
+        fullBio: p.fullBio || p.bio || '',
+        specialties: (p.specialties && p.specialties.length > 0) 
+          ? p.specialties 
+          : (p.specialty ? [p.specialty] : ['Internal Medicine']),
+        languages: p.languages || ['English', 'Spanish']
       };
-
-      if (process.env.NODE_ENV !== 'production') {
-        console.log({
-          provider: item.name,
-          id: item.id,
-          slug: item.slug,
-          image: item.image
-        });
-      }
-
-      return item;
     });
-  }, [cmsProviders, siteMedia]);
+  }, [cmsProviders]);
 
   return (
     <div className="bg-[#FCFBF8] text-[#252A2B] overflow-hidden">
