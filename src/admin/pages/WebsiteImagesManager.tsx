@@ -4,7 +4,7 @@ import {
   RotateCcw, Save, Upload, Sparkles, Filter, Eye, AlertCircle,
   CheckCircle2, Globe, Layout, Layers, ShieldCheck, HeartPulse,
   BookOpen, Compass, Stethoscope, MapPin, Tag, Sliders, ChevronRight,
-  Trash2, X, Plus, Loader2, FolderKanban, Info
+  Trash2, X, Plus, Loader2, FolderKanban, Info, Activity
 } from 'lucide-react';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 import { getDb } from '../../lib/firebase';
@@ -763,6 +763,10 @@ export default function WebsiteImagesManager() {
     }
   };
 
+  const setSearchTermSafe = (val: string) => {
+    setSearchQuery(val);
+  };
+
   const CATEGORY_CHIPS = [
     { key: 'all', label: 'All Website Images', icon: Globe, count: catalog.length },
     { key: 'homepage', label: 'Homepage', icon: Layout, count: catalog.filter(c => c.category === 'homepage').length },
@@ -1494,8 +1498,4 @@ export default function WebsiteImagesManager() {
 
     </div>
   );
-
-  function setSearchTermSafe(val: string) {
-    setSearchQuery(val);
-  }
 }
