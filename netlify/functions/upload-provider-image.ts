@@ -1,51 +1,55 @@
 import type { Handler, HandlerEvent } from '@netlify/functions';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, HeadBucketCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
 
 // ---------------------------------------------------------------------------
-// R2 client configuration with comprehensive env var fallbacks
+// Clean environment variable helper (trims whitespace and strips quotes)
+// ---------------------------------------------------------------------------
+function cleanEnv(val?: string): string {
+  if (!val) return '';
+  return val.trim().replace(/^["']|["']$/g, '').trim();
+}
+
+// ---------------------------------------------------------------------------
+// R2 client configuration with standard S3-compatible Cloudflare endpoint
 // ---------------------------------------------------------------------------
 function getR2Config() {
   const accountId =
-    process.env.R2_ACCOUNT_ID ||
-    process.env.CLOUDFLARE_ACCOUNT_ID ||
+    cleanEnv(process.env.R2_ACCOUNT_ID) ||
+    cleanEnv(process.env.CLOUDFLARE_ACCOUNT_ID) ||
     '93888554ef9d9e0b8c18b322683a9652';
 
   const accessKeyId =
-    process.env.R2_ACCESS_KEY_ID ||
-    process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ||
+    cleanEnv(process.env.R2_ACCESS_KEY_ID) ||
+    cleanEnv(process.env.CLOUDFLARE_R2_ACCESS_KEY_ID) ||
     '620c8e408b865b0cf374335eea20427a';
 
   const secretAccessKey =
-    process.env.R2_SECRET_ACCESS_KEY ||
-    process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY ||
+    cleanEnv(process.env.R2_SECRET_ACCESS_KEY) ||
+    cleanEnv(process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY) ||
     '319c9a470be72b458b69c0bb25e4c4726d1992711bbf81c7fb59b544914f4740';
 
   const bucketName =
-    process.env.R2_BUCKET_NAME ||
-    process.env.CLOUDFLARE_R2_BUCKET ||
+    cleanEnv(process.env.R2_BUCKET_NAME) ||
+    cleanEnv(process.env.CLOUDFLARE_R2_BUCKET) ||
     'deval-gadhvi';
 
   const rawPublicUrl =
-    process.env.R2_PUBLIC_URL ||
-    process.env.R2_PUBLIC_BASE_URL ||
-    process.env.R2_PUBLIC_DOMAIN ||
-    process.env.R2_CUSTOM_DOMAIN ||
-    process.env.R2_DOMAIN ||
+    cleanEnv(process.env.R2_PUBLIC_URL) ||
+    cleanEnv(process.env.R2_PUBLIC_BASE_URL) ||
+    cleanEnv(process.env.R2_PUBLIC_DOMAIN) ||
+    cleanEnv(process.env.R2_CUSTOM_DOMAIN) ||
+    cleanEnv(process.env.R2_DOMAIN) ||
     'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev';
 
-  const publicBaseUrl = rawPublicUrl.replace(/\/$/, '');
+  const publicBaseUrl = rawPublicUrl.replace(/\/+$/, '');
 
-  const explicitEndpoint = process.env.R2_ENDPOINT;
-  const endpoint =
-    explicitEndpoint ||
-    (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : null);
+  // CRITICAL: Always use the official Cloudflare R2 S3-compatible endpoint for API operations.
+  // Never use public/r2.dev or bucket public domains as the S3 API endpoint.
+  const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
 
   if (!accessKeyId || !secretAccessKey) {
     throw new Error('R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY must be configured.');
-  }
-  if (!endpoint) {
-    throw new Error('R2_ENDPOINT or R2_ACCOUNT_ID must be configured.');
   }
 
   const client = new S3Client({
@@ -54,7 +58,7 @@ function getR2Config() {
     credentials: { accessKeyId, secretAccessKey },
   });
 
-  return { client, bucketName, publicBaseUrl };
+  return { client, bucketName, publicBaseUrl, accountId, endpoint };
 }
 
 // ---------------------------------------------------------------------------
@@ -112,11 +116,45 @@ export const handler: Handler = async (event: HandlerEvent) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   };
 
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: corsHeaders, body: '' };
+  }
+
+  // Connectivity Test Endpoint (GET /.netlify/functions/upload-provider-image?test=true)
+  if (event.httpMethod === 'GET') {
+    try {
+      const { client, bucketName, accountId, endpoint } = getR2Config();
+      const headRes = await client.send(new HeadBucketCommand({ Bucket: bucketName }));
+      const listRes = await client.send(new ListObjectsV2Command({ Bucket: bucketName, MaxKeys: 5 }));
+
+      return {
+        statusCode: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          success: true,
+          message: 'Cloudflare R2 TLS connection, authentication, and bucket access verified successfully.',
+          endpoint,
+          bucket: bucketName,
+          accountId: `${accountId.slice(0, 6)}...${accountId.slice(-4)}`,
+          headBucketStatusCode: headRes.$metadata?.httpStatusCode ?? 200,
+          objectsFound: listRes.KeyCount ?? 0,
+        }),
+      };
+    } catch (testErr: any) {
+      return {
+        statusCode: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          success: false,
+          error: testErr.message,
+          name: testErr.name,
+          code: testErr.code,
+        }),
+      };
+    }
   }
 
   if (event.httpMethod !== 'POST') {

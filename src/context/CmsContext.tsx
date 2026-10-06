@@ -1,21 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
+import {
   doc, onSnapshot, collection, getDocs, setDoc, deleteDoc,
-  serverTimestamp, addDoc 
+  serverTimestamp, addDoc
 } from 'firebase/firestore';
 import { getDb } from '../lib/firebase';
-import { 
-  HomePageContent, AboutPageContent, DiagnosticsPageContent, 
-  ProcessPageContent, ContactPageContent, HeaderContent, 
+import {
+  HomePageContent, AboutPageContent, DiagnosticsPageContent,
+  ProcessPageContent, ContactPageContent, HeaderContent,
   FooterContent, SiteSettings, Provider, ServiceItem, TestimonialItem,
-  BlogPost, BlogCategory, BlogAuthor, BlogTag, PageSeoItem, SiteMediaItem 
+  BlogPost, BlogCategory, BlogAuthor, BlogTag, PageSeoItem, SiteMediaItem
 } from '../types';
-import { 
-  DEFAULT_HOME_PAGE, DEFAULT_ABOUT_PAGE, DEFAULT_DIAGNOSTICS_PAGE, 
-  DEFAULT_PROCESS_PAGE, DEFAULT_CONTACT_PAGE, DEFAULT_HEADER, 
-  DEFAULT_FOOTER, DEFAULT_SITE_SETTINGS, DEFAULT_PROVIDERS, 
+import {
+  DEFAULT_HOME_PAGE, DEFAULT_ABOUT_PAGE, DEFAULT_DIAGNOSTICS_PAGE,
+  DEFAULT_PROCESS_PAGE, DEFAULT_CONTACT_PAGE, DEFAULT_HEADER,
+  DEFAULT_FOOTER, DEFAULT_SITE_SETTINGS, DEFAULT_PROVIDERS,
   DEFAULT_SERVICES, DEFAULT_TESTIMONIALS, DEFAULT_BLOGS,
-  DEFAULT_BLOG_CATEGORIES, DEFAULT_BLOG_AUTHORS, DEFAULT_BLOG_TAGS, DEFAULT_PAGE_SEO 
+  DEFAULT_BLOG_CATEGORIES, DEFAULT_BLOG_AUTHORS, DEFAULT_BLOG_TAGS, DEFAULT_PAGE_SEO
 } from '../data/defaultCmsData';
 import { normalizeProviderKey, DEFAULT_PROVIDER_IMAGES } from '../utils/providerImages';
 import { DEFAULT_SITE_MEDIA } from '../data/defaultSiteMedia';
@@ -110,7 +110,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
   const [headerContent, setHeaderContent] = useState<HeaderContent>(() => getLocalItem('newark_cms_header', DEFAULT_HEADER));
   const [footerContent, setFooterContent] = useState<FooterContent>(() => getLocalItem('newark_cms_footer', DEFAULT_FOOTER));
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => getLocalItem('newark_cms_settings', DEFAULT_SITE_SETTINGS));
-  
+
   const [providers, setProviders] = useState<Provider[]>(() => getLocalItem('newark_cms_providers', DEFAULT_PROVIDERS));
   const [services, setServices] = useState<ServiceItem[]>(DEFAULT_SERVICES);
   const [testimonials, setTestimonials] = useState<TestimonialItem[]>(DEFAULT_TESTIMONIALS);
@@ -182,8 +182,8 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
           const d = docSnap.data() as any;
           const activeHeroImg = d.hero?.heroImage || d.hero?.heroImageUrl || d.hero?.imageUrl || DEFAULT_HOME_PAGE.hero.heroImage;
           const newHome: HomePageContent = {
-            hero: { 
-              ...DEFAULT_HOME_PAGE.hero, 
+            hero: {
+              ...DEFAULT_HOME_PAGE.hero,
               ...(d.hero || {}),
               heroImage: activeHeroImg,
               heroImageUrl: activeHeroImg,
@@ -193,8 +193,8 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
               videoMode: d.hero?.videoMode || 'modal',
             },
             stats: { ...DEFAULT_HOME_PAGE.stats, ...(d.stats || {}) },
-            aboutPreview: { 
-              ...DEFAULT_HOME_PAGE.aboutPreview, 
+            aboutPreview: {
+              ...DEFAULT_HOME_PAGE.aboutPreview,
               ...(d.aboutPreview || {}),
               imageUrl: d.aboutPreview?.imageUrl || d.aboutPreview?.image || DEFAULT_HOME_PAGE.aboutPreview.imageUrl,
               videoUrl: d.aboutPreview?.videoUrl || ''
@@ -204,10 +204,10 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
             whyChooseUs: { ...DEFAULT_HOME_PAGE.whyChooseUs, ...(d.whyChooseUs || {}) },
             process: { ...DEFAULT_HOME_PAGE.process, ...(d.process || {}) },
             testimonials: { ...DEFAULT_HOME_PAGE.testimonials, ...(d.testimonials || {}) },
-            faq: { 
-              ...DEFAULT_HOME_PAGE.faq, 
+            faq: {
+              ...DEFAULT_HOME_PAGE.faq,
               ...(d.faq || {}),
-              items: d.faq?.items || DEFAULT_HOME_PAGE.faq.items 
+              items: d.faq?.items || DEFAULT_HOME_PAGE.faq.items
             },
             ctaBanner: { ...DEFAULT_HOME_PAGE.ctaBanner, ...(d.ctaBanner || {}) },
             sectionVisibility: { ...DEFAULT_HOME_PAGE.sectionVisibility, ...(d.sectionVisibility || {}) }
@@ -221,8 +221,8 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
       unsubscribeAbout = onSnapshot(doc(db, 'pages', 'about'), (docSnap) => {
         if (docSnap.exists()) {
           const d = docSnap.data() as any;
-          const newAbout: AboutPageContent = { 
-            ...DEFAULT_ABOUT_PAGE, 
+          const newAbout: AboutPageContent = {
+            ...DEFAULT_ABOUT_PAGE,
             ...d,
             facilityImageUrl: d.facilityImageUrl || d.facilityImage || DEFAULT_ABOUT_PAGE.facilityImageUrl,
             heroImage: d.heroImage || DEFAULT_ABOUT_PAGE.heroImage,
@@ -231,49 +231,49 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
           setAboutContent(newAbout);
           setLocalItem('newark_cms_about', newAbout);
         }
-      }, () => {});
+      }, () => { });
 
       // Diagnostics Page
       unsubscribeDiagnostics = onSnapshot(doc(db, 'pages', 'diagnostics'), (docSnap) => {
         if (docSnap.exists()) {
           setDiagnosticsContent({ ...DEFAULT_DIAGNOSTICS_PAGE, ...(docSnap.data() as any) });
         }
-      }, () => {});
+      }, () => { });
 
       // Process Page
       unsubscribeProcess = onSnapshot(doc(db, 'pages', 'process'), (docSnap) => {
         if (docSnap.exists()) {
           setProcessContent({ ...DEFAULT_PROCESS_PAGE, ...(docSnap.data() as any) });
         }
-      }, () => {});
+      }, () => { });
 
       // Contact Page
       unsubscribeContact = onSnapshot(doc(db, 'pages', 'contact'), (docSnap) => {
         if (docSnap.exists()) {
           setContactContent({ ...DEFAULT_CONTACT_PAGE, ...(docSnap.data() as any) });
         }
-      }, () => {});
+      }, () => { });
 
       // Header Layout
       unsubscribeHeader = onSnapshot(doc(db, 'layout', 'header'), (docSnap) => {
         if (docSnap.exists()) {
           setHeaderContent({ ...DEFAULT_HEADER, ...(docSnap.data() as any) });
         }
-      }, () => {});
+      }, () => { });
 
       // Footer Layout
       unsubscribeFooter = onSnapshot(doc(db, 'layout', 'footer'), (docSnap) => {
         if (docSnap.exists()) {
           setFooterContent({ ...DEFAULT_FOOTER, ...(docSnap.data() as any) });
         }
-      }, () => {});
+      }, () => { });
 
       // Site Settings
       unsubscribeSettings = onSnapshot(doc(db, 'settings', 'site'), (docSnap) => {
         if (docSnap.exists()) {
           setSiteSettings({ ...DEFAULT_SITE_SETTINGS, ...(docSnap.data() as any) });
         }
-      }, () => {});
+      }, () => { });
 
       // Providers Collection
       unsubscribeProviders = onSnapshot(collection(db, 'providers'), (snapshot) => {
@@ -285,8 +285,8 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
 
             // Data sanitization: Dr. Prahlad must never hold the swapped female Framer image
             if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
-              raw.imageUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') || 
-              raw.profileImage?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') || 
+              raw.imageUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
+              raw.profileImage?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
               raw.photoUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0')
             )) {
               const fallbackUrl = DEFAULT_PROVIDER_IMAGES['prahlad-gadhavi'];
@@ -319,12 +319,12 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
           setProviders(list);
           setLocalItem('newark_cms_providers', list);
         }
-      }, () => {});
+      }, () => { });
 
       // Live Doctor Profile Listener - DEPRECATED
       // We no longer overwrite the providers array with doctor_profile photoUrl.
       // The providers collection is now the single source of truth for provider images.
-      unsubscribeDoctorProfile = () => {};
+      unsubscribeDoctorProfile = () => { };
 
       // Services Collection
       unsubscribeServices = onSnapshot(collection(db, 'services'), (snapshot) => {
@@ -336,7 +336,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
           list.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
           setServices(list);
         }
-      }, () => {});
+      }, () => { });
 
       // Testimonials Collection
       unsubscribeTestimonials = onSnapshot(collection(db, 'testimonials'), (snapshot) => {
@@ -348,7 +348,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
           list.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
           setTestimonials(list);
         }
-      }, () => {});
+      }, () => { });
 
       // Blogs Collection
       unsubscribeBlogs = onSnapshot(collection(db, 'blogs'), (snapshot) => {
@@ -360,7 +360,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
           list.sort((a, b) => new Date(b.publishDate || b.createdAt || 0).getTime() - new Date(a.publishDate || a.createdAt || 0).getTime());
           setBlogs(list);
         }
-      }, () => {});
+      }, () => { });
 
       // Blog Categories Collection
       unsubscribeCategories = onSnapshot(collection(db, 'blog_categories'), (snapshot) => {
@@ -372,7 +372,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
           list.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
           setBlogCategories(list);
         }
-      }, () => {});
+      }, () => { });
 
       // Blog Authors Collection
       unsubscribeAuthors = onSnapshot(collection(db, 'blog_authors'), (snapshot) => {
@@ -383,7 +383,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
           });
           setBlogAuthors(list);
         }
-      }, () => {});
+      }, () => { });
 
       // Blog Tags Collection
       unsubscribeTags = onSnapshot(collection(db, 'blog_tags'), (snapshot) => {
@@ -395,7 +395,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
           list.sort((a, b) => a.name.localeCompare(b.name));
           setBlogTags(list);
         }
-      }, () => {});
+      }, () => { });
 
       // Page SEO Collection
       unsubscribePageSeo = onSnapshot(collection(db, 'page_seo'), (snapshot) => {
@@ -406,7 +406,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
           });
           setPageSeoList(list);
         }
-      }, () => {});
+      }, () => { });
 
       // Centralized Site Media Collection
       unsubscribeSiteMedia = onSnapshot(collection(db, 'site_media'), (snapshot) => {
@@ -421,7 +421,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
             return merged;
           });
         }
-      }, () => {});
+      }, () => { });
 
     } catch (e) {
       console.warn('Firestore initial listener fallback active:', e);
@@ -518,7 +518,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
     try {
       const db = getDb();
       await setDoc(doc(db, 'pages', 'diagnostics'), { ...updated, updatedAt: serverTimestamp() }, { merge: true });
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const updateProcessPageContent = async (data: Partial<ProcessPageContent>) => {
@@ -528,7 +528,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
     try {
       const db = getDb();
       await setDoc(doc(db, 'pages', 'process'), { ...updated, updatedAt: serverTimestamp() }, { merge: true });
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const updateContactPageContent = async (data: Partial<ContactPageContent>) => {
@@ -538,7 +538,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
     try {
       const db = getDb();
       await setDoc(doc(db, 'pages', 'contact'), { ...updated, updatedAt: serverTimestamp() }, { merge: true });
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const updateHeaderContent = async (data: Partial<HeaderContent>) => {
@@ -548,7 +548,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
     try {
       const db = getDb();
       await setDoc(doc(db, 'layout', 'header'), { ...updated, updatedAt: serverTimestamp() }, { merge: true });
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const updateFooterContent = async (data: Partial<FooterContent>) => {
@@ -558,7 +558,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
     try {
       const db = getDb();
       await setDoc(doc(db, 'layout', 'footer'), { ...updated, updatedAt: serverTimestamp() }, { merge: true });
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const updateSiteSettings = async (data: Partial<SiteSettings>) => {
@@ -569,7 +569,7 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
     try {
       const db = getDb();
       await setDoc(doc(db, 'settings', 'site'), { ...updated, updatedAt: serverTimestamp() }, { merge: true });
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // Blog CRUD Operations
@@ -888,18 +888,18 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
     const id = `${pageKey}-${sectionKey}-${imageKey}`;
     if (siteMedia[id]) return siteMedia[id];
     if (DEFAULT_SITE_MEDIA[id]) return DEFAULT_SITE_MEDIA[id];
-    
+
     // Find by keys
-    const found = (Object.values(siteMedia) as SiteMediaItem[]).find(m => 
-      m.pageKey === pageKey && 
-      (!sectionKey || m.sectionKey === sectionKey) && 
+    const found = (Object.values(siteMedia) as SiteMediaItem[]).find(m =>
+      m.pageKey === pageKey &&
+      (!sectionKey || m.sectionKey === sectionKey) &&
       (!imageKey || m.imageKey === imageKey || m.id === imageKey)
     );
     if (found) return found;
 
-    return (Object.values(DEFAULT_SITE_MEDIA) as SiteMediaItem[]).find(m => 
-      m.pageKey === pageKey && 
-      (!sectionKey || m.sectionKey === sectionKey) && 
+    return (Object.values(DEFAULT_SITE_MEDIA) as SiteMediaItem[]).find(m =>
+      m.pageKey === pageKey &&
+      (!sectionKey || m.sectionKey === sectionKey) &&
       (!imageKey || m.imageKey === imageKey || m.id === imageKey)
     );
   };
@@ -977,8 +977,8 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
     setLocalItem('newark_cms_site_media', newMap);
 
     // Cross-tab notification
-    window.dispatchEvent(new CustomEvent('newark_cms_update', { 
-      detail: { type: 'site_media', data: { [id]: updated } } 
+    window.dispatchEvent(new CustomEvent('newark_cms_update', {
+      detail: { type: 'site_media', data: { [id]: updated } }
     }));
 
     try {
@@ -987,25 +987,25 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
 
       // Bidirectional sync with legacy schemas where applicable
       if (id === 'home-hero-main' && updates.url) {
-        await setDoc(doc(db, 'pages', 'home'), { 
-          hero: { heroImage: updates.url, heroImageUrl: updates.url, alt: updates.altText || '' } 
+        await setDoc(doc(db, 'pages', 'home'), {
+          hero: { heroImage: updates.url, heroImageUrl: updates.url, alt: updates.altText || '' }
         }, { merge: true });
       } else if (id === 'home-about-preview' && updates.url) {
-        await setDoc(doc(db, 'pages', 'home'), { 
-          aboutPreview: { imageUrl: updates.url } 
+        await setDoc(doc(db, 'pages', 'home'), {
+          aboutPreview: { imageUrl: updates.url }
         }, { merge: true });
       } else if (id === 'home-philosophy-portrait' && updates.url) {
-        await setDoc(doc(db, 'pages', 'home'), { 
-          carePhilosophyImage: updates.url 
+        await setDoc(doc(db, 'pages', 'home'), {
+          carePhilosophyImage: updates.url
         }, { merge: true });
       } else if (id === 'home-fullwidth-banner' && updates.url) {
-        await setDoc(doc(db, 'pages', 'home'), { 
-          fullWidthImage: updates.url 
+        await setDoc(doc(db, 'pages', 'home'), {
+          fullWidthImage: updates.url
         }, { merge: true });
       } else if (id === 'about-facility-main' && updates.url) {
-        await setDoc(doc(db, 'pages', 'about'), { 
+        await setDoc(doc(db, 'pages', 'about'), {
           facilityImageUrl: updates.url,
-          heroImage: updates.url 
+          heroImage: updates.url
         }, { merge: true });
       } else if (id === 'contact-clinic-exterior' && updates.url) {
         await setDoc(doc(db, 'pages', 'contact'), {
@@ -1161,4 +1161,3 @@ export function useCmsData() {
   }
   return context;
 }
-

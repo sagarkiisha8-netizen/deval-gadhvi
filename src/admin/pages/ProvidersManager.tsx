@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, Plus, Edit2, Trash2, Check, X, 
-  Search, Image as ImageIcon, Star, Phone, Mail, 
+import {
+  Users, Plus, Edit2, Trash2, Check, X,
+  Search, Image as ImageIcon, Star, Phone, Mail,
   Globe, Eye, EyeOff, Save, Loader2, Sparkles, ArrowUpDown,
   Upload, AlertCircle, ExternalLink, RotateCcw, CheckCircle2
 } from 'lucide-react';
-import { 
-  collection, onSnapshot, doc, setDoc, deleteDoc, 
-  serverTimestamp, query, orderBy, addDoc, getDocs 
+import {
+  collection, onSnapshot, doc, setDoc, deleteDoc,
+  serverTimestamp, query, orderBy, addDoc, getDocs
 } from 'firebase/firestore';
 import { getDb } from '../../lib/firebase';
 import { Provider } from '../../types';
@@ -19,7 +19,7 @@ export default function ProvidersManager() {
   const [providers, setProviders] = useState<Provider[]>(DEFAULT_PROVIDERS);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Modal & Editing state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
@@ -58,8 +58,8 @@ export default function ProvidersManager() {
     const pid = editingProvider.id
       ? editingProvider.id
       : providerName
-      ? `dr-${providerName}`
-      : `provider-${Date.now()}`;
+        ? `dr-${providerName}`
+        : `provider-${Date.now()}`;
 
     try {
       // 1. Read as Base64 to guarantee 100% reliable transport across serverless environments
@@ -163,8 +163,8 @@ export default function ProvidersManager() {
 
             // Data sanitization: Dr. Prahlad must never hold the swapped female Framer image
             if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
-              raw.imageUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') || 
-              raw.profileImage?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') || 
+              raw.imageUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
+              raw.profileImage?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
               raw.photoUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0')
             )) {
               const fallbackUrl = DEFAULT_PROVIDER_IMAGES['prahlad-gadhavi'];
@@ -197,7 +197,7 @@ export default function ProvidersManager() {
           setProviders(list);
           try {
             localStorage.setItem('newark_cms_providers', JSON.stringify(list));
-          } catch {}
+          } catch { }
         } else {
           setProviders(DEFAULT_PROVIDERS);
         }
@@ -257,7 +257,7 @@ export default function ProvidersManager() {
     setLocalPreviewUrl(null);
     setPhotoUploadError(null);
     setPhotoUploadSuccessMsg(null);
-    setEditingProvider({ 
+    setEditingProvider({
       ...p,
       profileImage: p.profileImage || p.imageUrl || p.photoUrl,
       imageUrl: p.imageUrl || p.photoUrl || p.profileImage,
@@ -314,7 +314,7 @@ export default function ProvidersManager() {
       if (isPrahlad) {
         try {
           await deleteDoc(doc(db, 'providers', 'dr-prahlad-gadhavi'));
-        } catch (e) {}
+        } catch (e) { }
       }
 
       // Requirement 13: Temporary console logging for verification
@@ -339,7 +339,7 @@ export default function ProvidersManager() {
         setProviders(list);
         try {
           localStorage.setItem('newark_cms_providers', JSON.stringify(list));
-        } catch {}
+        } catch { }
       }
 
       setIsModalOpen(false);
@@ -388,7 +388,7 @@ export default function ProvidersManager() {
     }
   };
 
-  const filtered = providers.filter(p => 
+  const filtered = providers.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.specialty.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -461,11 +461,10 @@ export default function ProvidersManager() {
             const hasHomepageOverride = Boolean(provider.homepageImageOverride);
 
             return (
-              <div 
+              <div
                 key={provider.id}
-                className={`bg-white rounded-2xl border transition-all shadow-sm overflow-hidden flex flex-col ${
-                  provider.isActive ? 'border-slate-200 hover:shadow-md' : 'border-slate-200 opacity-60 bg-slate-50'
-                }`}
+                className={`bg-white rounded-2xl border transition-all shadow-sm overflow-hidden flex flex-col ${provider.isActive ? 'border-slate-200 hover:shadow-md' : 'border-slate-200 opacity-60 bg-slate-50'
+                  }`}
               >
                 {/* Card Header with Photo */}
                 <div className="p-6 flex items-start gap-4 border-b border-slate-100">
@@ -568,11 +567,10 @@ export default function ProvidersManager() {
                     <button
                       type="button"
                       onClick={() => handleToggleHomepage(provider)}
-                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                        provider.showOnHomepage !== false
+                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${provider.showOnHomepage !== false
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
                           : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-slate-200'
-                      }`}
+                        }`}
                       title="Toggle visibility on Homepage"
                     >
                       <span>Homepage: {provider.showOnHomepage !== false ? 'Shown' : 'Hidden'}</span>
@@ -582,11 +580,10 @@ export default function ProvidersManager() {
                       <button
                         type="button"
                         onClick={() => handleToggleActive(provider)}
-                        className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg transition-colors cursor-pointer ${
-                          provider.isActive 
-                            ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' 
+                        className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg transition-colors cursor-pointer ${provider.isActive
+                            ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                             : 'bg-amber-100 text-amber-800'
-                        }`}
+                          }`}
                         title="Toggle Active status"
                       >
                         {provider.isActive ? <Eye size={12} /> : <EyeOff size={12} />}
@@ -657,7 +654,7 @@ export default function ProvidersManager() {
 
             {/* Modal Body Form */}
             <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-6">
-              
+
               {/* Image Control Section 1: Main Provider Photo */}
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-5">
@@ -688,7 +685,7 @@ export default function ProvidersManager() {
                       )}
                     </div>
                     <p className="text-xs text-slate-500">Official clinical portrait stored permanently in Cloudflare R2 and displayed across the website.</p>
-                    
+
                     <div className="flex flex-wrap items-center gap-2.5 pt-1">
                       <label className="inline-flex items-center gap-2 px-3.5 py-2 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-all">
                         {isUploadingPhoto ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
@@ -719,11 +716,11 @@ export default function ProvidersManager() {
                       <input
                         type="text"
                         value={editingProvider.imageUrl || ''}
-                        onChange={(e) => setEditingProvider({ 
-                          ...editingProvider, 
-                          imageUrl: e.target.value, 
-                          photoUrl: e.target.value, 
-                          profileImage: e.target.value 
+                        onChange={(e) => setEditingProvider({
+                          ...editingProvider,
+                          imageUrl: e.target.value,
+                          photoUrl: e.target.value,
+                          profileImage: e.target.value
                         })}
                         placeholder="Or paste external/hosted image URL here..."
                         className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
@@ -788,7 +785,7 @@ export default function ProvidersManager() {
                     <p className="text-xs text-slate-600">
                       If you want a dedicated 4:5 crop or alternative portrait specifically for the Homepage "Our Medical Team" section, upload or select it here. If left blank, the Primary Provider Portrait is used.
                     </p>
-                    
+
                     <div className="flex flex-wrap items-center gap-2.5 pt-1">
                       <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-all">
                         {isUploadingPhoto ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}

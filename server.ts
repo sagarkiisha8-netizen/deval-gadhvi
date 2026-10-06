@@ -100,6 +100,34 @@ async function startServer() {
     }
   });
 
+  // Local development bridge for Netlify Function: test-r2
+  app.all('/.netlify/functions/test-r2', async (req, res) => {
+    try {
+      const { handler } = await import('./netlify/functions/test-r2');
+      const event: any = {
+        httpMethod: req.method,
+        headers: req.headers,
+        queryStringParameters: req.query,
+        body: req.body ? JSON.stringify(req.body) : '',
+        isBase64Encoded: false,
+      };
+      const result = await handler(event, {} as any, () => {});
+      if (!result) {
+        return res.status(500).json({ error: 'No response from function' });
+      }
+      res.status(result.statusCode || 200);
+      if (result.headers) {
+        for (const [key, value] of Object.entries(result.headers)) {
+          res.setHeader(key, value as string);
+        }
+      }
+      res.send(result.body);
+    } catch (err: any) {
+      console.error('[Local test-r2 Error]:', err);
+      res.status(500).json({ error: err.message || 'Function execution error' });
+    }
+  });
+
   app.use(express.json());
 
   // 1. Dynamic Standard XML Sitemap
