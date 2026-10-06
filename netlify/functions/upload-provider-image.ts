@@ -10,7 +10,7 @@ function cleanEnv(val?: string): string {
   return val.trim().replace(/^["']|["']$/g, '').trim();
 }
 
-function sanitizeAccountId(raw?: string): string {
+function sanitizeAccountId(raw?: string, accessKeyId?: string): string {
   const defaultId = '93888554ef9d9e0b8c18b322683a9652';
   if (!raw) return defaultId;
   let val = cleanEnv(raw);
@@ -21,16 +21,25 @@ function sanitizeAccountId(raw?: string): string {
   val = val.replace(/\.r2\.dev.*$/i, '');
   val = val.replace(/\/.*$/, '').trim();
 
-  // If someone passed the public bucket hash (e.g. pub-463524c5dd1e422ca67b4960ad60e690 or 463524c5dd1e422ca67b4960ad60e690)
-  // that's the public bucket token, NOT the Cloudflare Account ID.
-  if (val.startsWith('pub-') || val.toLowerCase() === '463524c5dd1e422ca67b4960ad60e690') {
+  // If someone passed the public bucket hash or the Access Key ID (620c8e408b865b0cf374335eea20427a)
+  // instead of the actual Account ID:
+  if (
+    val.startsWith('pub-') ||
+    val.toLowerCase() === '463524c5dd1e422ca67b4960ad60e690' ||
+    val.toLowerCase() === '620c8e408b865b0cf374335eea20427a' ||
+    (accessKeyId && val.toLowerCase() === accessKeyId.toLowerCase())
+  ) {
     return defaultId;
   }
 
   // A valid Cloudflare Account ID is a 32-hex string
   if (!/^[a-f0-9]{32}$/i.test(val)) {
     const hexMatch = val.match(/[a-f0-9]{32}/i);
-    if (hexMatch && hexMatch[0].toLowerCase() !== '463524c5dd1e422ca67b4960ad60e690') {
+    if (
+      hexMatch &&
+      hexMatch[0].toLowerCase() !== '463524c5dd1e422ca67b4960ad60e690' &&
+      hexMatch[0].toLowerCase() !== '620c8e408b865b0cf374335eea20427a'
+    ) {
       return hexMatch[0];
     }
     return defaultId;
@@ -43,15 +52,16 @@ function sanitizeAccountId(raw?: string): string {
 // R2 client configuration with standard S3-compatible Cloudflare endpoint
 // ---------------------------------------------------------------------------
 function getR2Config() {
-  const accountId = sanitizeAccountId(
-    process.env.R2_ACCOUNT_ID ||
-    process.env.CLOUDFLARE_ACCOUNT_ID
-  );
-
   const accessKeyId =
     cleanEnv(process.env.R2_ACCESS_KEY_ID) ||
     cleanEnv(process.env.CLOUDFLARE_R2_ACCESS_KEY_ID) ||
     '620c8e408b865b0cf374335eea20427a';
+
+  const accountId = sanitizeAccountId(
+    process.env.R2_ACCOUNT_ID ||
+    process.env.CLOUDFLARE_ACCOUNT_ID,
+    accessKeyId
+  );
 
   const secretAccessKey =
     cleanEnv(process.env.R2_SECRET_ACCESS_KEY) ||
