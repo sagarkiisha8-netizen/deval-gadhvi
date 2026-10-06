@@ -76,7 +76,7 @@ export default function Navbar() {
         }`}
       >
         {/* Left: Newark Medical Associates Logo */}
-        <Link to="/" className="shrink-0 flex items-center group py-2 max-w-[170px] xs:max-w-none" aria-label="Newark Medical Associates">
+        <Link to="/" className="shrink-0 flex items-center group py-2" aria-label="Newark Medical Associates">
           <BrandLogo layout="horizontal" colorScheme="colored" size="md" />
         </Link>
 
@@ -111,16 +111,16 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Hamburger & Quick CTA Toggle */}
-        <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 lg:hidden shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 lg:hidden">
           <Link
             to="/appointments"
-            className="sm:hidden shrink-0 inline-flex items-center justify-center h-[38px] px-2.5 xs:px-3 bg-[#0B1F2A] text-[#FCFBF8] text-[11px] font-semibold uppercase tracking-wider"
+            className="sm:hidden inline-flex items-center justify-center min-h-[40px] px-3 py-1.5 bg-[#0B1F2A] text-[#FCFBF8] text-[11.5px] font-semibold uppercase tracking-wider"
           >
             Book
           </Link>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="w-[44px] h-[44px] shrink-0 flex items-center justify-center text-[#0B1F2A] hover:text-[#315B52] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B39A68]"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-[#0B1F2A] hover:text-[#315B52] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B39A68]"
             aria-label="Toggle navigation menu"
             aria-expanded={mobileMenuOpen}
           >
@@ -135,6 +135,7 @@ export default function Navbar() {
       </div>
 
       {/* Animated Mobile Drawer Menu */}
+      {/* top = utility-bar(30px) + header(76px mobile / 80px sm / 82px md) */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
@@ -142,8 +143,7 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="lg:hidden absolute top-full left-0 right-0 bg-[#F4EFE6] z-50 flex flex-col justify-between px-5 sm:px-8 pt-4 sm:pt-6 overflow-y-auto border-t border-[#D9D0C5] shadow-2xl"
-            style={{ height: 'calc(100dvh - 100%)' }}
+            className="lg:hidden fixed inset-x-0 top-[106px] sm:top-[110px] md:top-[112px] bottom-0 bg-[#F4EFE6] z-50 flex flex-col justify-between px-5 sm:px-8 pt-4 sm:pt-6 overflow-y-auto border-t border-[#D9D0C5] shadow-2xl"
           >
             <nav className="flex flex-col gap-0.5 pt-1">
               {navLinks.map((link, idx) => (
