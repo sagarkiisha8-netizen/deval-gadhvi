@@ -127,6 +127,7 @@ export default function ProvidersManager() {
         } : null);
       }
       setLocalPreviewUrl(null);
+      setPhotoUploadSuccessMsg('Upload successful! Image saved to Cloudflare R2.');
 
       // Instant persistent save to Firestore for uninterrupted synchronization
       try {
@@ -316,8 +317,7 @@ export default function ProvidersManager() {
     try {
       const db = getDb();
       const id = editingProvider.id || `provider-${Date.now()}`;
-      const canonicalKey = normalizeProviderKey(id || editingProvider.slug || editingProvider.name);
-      const isPrahlad = canonicalKey === 'prahlad-gadhavi' || canonicalKey === 'prahlad-gadhvi';
+      const isPrahlad = canonicalKey === 'dr-prahlad-gadhvi' || canonicalKey === 'prahlad-gadhavi' || canonicalKey === 'prahlad-gadhvi';
       const canonicalId = isPrahlad ? 'dr-prahlad-gadhvi' : id;
 
       const originalProvider = providers.find(p => normalizeProviderKey(p.id || p.slug || p.name) === canonicalKey);

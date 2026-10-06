@@ -10,14 +10,43 @@ function cleanEnv(val?: string): string {
   return val.trim().replace(/^["']|["']$/g, '').trim();
 }
 
+function sanitizeAccountId(raw?: string): string {
+  const defaultId = '93888554ef9d9e0b8c18b322683a9652';
+  if (!raw) return defaultId;
+  let val = cleanEnv(raw);
+  // Strip protocol if mistakenly present
+  val = val.replace(/^https?:\/\//i, '');
+  // Strip domain suffixes if mistakenly present
+  val = val.replace(/\.r2\.cloudflarestorage\.com.*$/i, '');
+  val = val.replace(/\.r2\.dev.*$/i, '');
+  val = val.replace(/\/.*$/, '').trim();
+
+  // If someone passed the public bucket hash (e.g. pub-463524c5dd1e422ca67b4960ad60e690 or 463524c5dd1e422ca67b4960ad60e690)
+  // that's the public bucket token, NOT the Cloudflare Account ID.
+  if (val.startsWith('pub-') || val.toLowerCase() === '463524c5dd1e422ca67b4960ad60e690') {
+    return defaultId;
+  }
+
+  // A valid Cloudflare Account ID is a 32-hex string
+  if (!/^[a-f0-9]{32}$/i.test(val)) {
+    const hexMatch = val.match(/[a-f0-9]{32}/i);
+    if (hexMatch && hexMatch[0].toLowerCase() !== '463524c5dd1e422ca67b4960ad60e690') {
+      return hexMatch[0];
+    }
+    return defaultId;
+  }
+
+  return val;
+}
+
 // ---------------------------------------------------------------------------
 // R2 client configuration with standard S3-compatible Cloudflare endpoint
 // ---------------------------------------------------------------------------
 function getR2Config() {
-  const accountId =
-    cleanEnv(process.env.R2_ACCOUNT_ID) ||
-    cleanEnv(process.env.CLOUDFLARE_ACCOUNT_ID) ||
-    '93888554ef9d9e0b8c18b322683a9652';
+  const accountId = sanitizeAccountId(
+    process.env.R2_ACCOUNT_ID ||
+    process.env.CLOUDFLARE_ACCOUNT_ID
+  );
 
   const accessKeyId =
     cleanEnv(process.env.R2_ACCESS_KEY_ID) ||
@@ -56,6 +85,7 @@ function getR2Config() {
     region: 'auto',
     endpoint,
     credentials: { accessKeyId, secretAccessKey },
+    forcePathStyle: true,
   });
 
   return { client, bucketName, publicBaseUrl, accountId, endpoint };
