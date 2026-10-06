@@ -17,8 +17,7 @@ import {
   DEFAULT_SERVICES, DEFAULT_TESTIMONIALS, DEFAULT_BLOGS,
   DEFAULT_BLOG_CATEGORIES, DEFAULT_BLOG_AUTHORS, DEFAULT_BLOG_TAGS, DEFAULT_PAGE_SEO 
 } from '../data/defaultCmsData';
-import { DEFAULT_SITE_MEDIA } from '../data/defaultSiteMedia';
-import { normalizeProviderKey } from '../utils/providerImages';
+import { normalizeProviderKey, DEFAULT_PROVIDER_IMAGES } from '../utils/providerImages';
 
 interface CmsContextType {
   homeContent: HomePageContent;
@@ -289,17 +288,26 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
               raw.profileImage?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') || 
               raw.photoUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0')
             )) {
-              raw.imageUrl = '/uploads/providers/prahlad-gadhavi-1789541233283.webp';
-              raw.profileImage = '/uploads/providers/prahlad-gadhavi-1789541233283.webp';
-              raw.photoUrl = '/uploads/providers/prahlad-gadhavi-1789541233283.webp';
+              const fallbackUrl = DEFAULT_PROVIDER_IMAGES['prahlad-gadhavi'];
+              raw.imageUrl = fallbackUrl;
+              raw.profileImage = fallbackUrl;
+              raw.photoUrl = fallbackUrl;
             }
 
             if (!canonicalMap.has(key)) {
               canonicalMap.set(key, raw);
             } else {
               const existing = canonicalMap.get(key)!;
-              const existingTime = new Date(existing.updatedAt || 0).getTime();
-              const currTime = new Date(raw.updatedAt || 0).getTime();
+              const parseTs = (t: any): number => {
+                if (!t) return 0;
+                if (typeof t === 'number') return t;
+                if (typeof t?.toMillis === 'function') return t.toMillis();
+                if (t?.seconds) return t.seconds * 1000;
+                const n = new Date(t).getTime();
+                return isNaN(n) ? 0 : n;
+              };
+              const existingTime = parseTs(existing.updatedAt);
+              const currTime = parseTs(raw.updatedAt);
               if (currTime > existingTime || (!existing.imageUrl && raw.imageUrl)) {
                 canonicalMap.set(key, { ...existing, ...raw });
               }

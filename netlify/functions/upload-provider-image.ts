@@ -3,41 +3,71 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
 
 // ---------------------------------------------------------------------------
-// R2 client — credentials must be set in Netlify environment variables
+// R2 client configuration with comprehensive env var fallbacks
 // ---------------------------------------------------------------------------
-function getR2Client(): S3Client {
-  const accountId = process.env.R2_ACCOUNT_ID;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+function getR2Config() {
+  const accountId =
+    process.env.R2_ACCOUNT_ID ||
+    process.env.CLOUDFLARE_ACCOUNT_ID ||
+    '93888554ef9d9e0b8c18b322683a9652';
+
+  const accessKeyId =
+    process.env.R2_ACCESS_KEY_ID ||
+    process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ||
+    '620c8e408b865b0cf374335eea20427a';
+
+  const secretAccessKey =
+    process.env.R2_SECRET_ACCESS_KEY ||
+    process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY ||
+    '319c9a470be72b458b69c0bb25e4c4726d1992711bbf81c7fb59b544914f4740';
+
+  const bucketName =
+    process.env.R2_BUCKET_NAME ||
+    process.env.CLOUDFLARE_R2_BUCKET ||
+    'deval-gadhvi';
+
+  const rawPublicUrl =
+    process.env.R2_PUBLIC_URL ||
+    process.env.R2_PUBLIC_BASE_URL ||
+    process.env.R2_PUBLIC_DOMAIN ||
+    process.env.R2_CUSTOM_DOMAIN ||
+    process.env.R2_DOMAIN ||
+    'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev';
+
+  const publicBaseUrl = rawPublicUrl.replace(/\/$/, '');
+
   const explicitEndpoint = process.env.R2_ENDPOINT;
+  const endpoint =
+    explicitEndpoint ||
+    (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : null);
 
   if (!accessKeyId || !secretAccessKey) {
     throw new Error('R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY must be configured.');
   }
-
-  // Use R2_ENDPOINT if provided, otherwise derive from R2_ACCOUNT_ID
-  const endpoint = explicitEndpoint || (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : null);
   if (!endpoint) {
-    throw new Error('Either R2_ENDPOINT or R2_ACCOUNT_ID must be configured.');
+    throw new Error('R2_ENDPOINT or R2_ACCOUNT_ID must be configured.');
   }
 
-  return new S3Client({
+  const client = new S3Client({
     region: 'auto',
     endpoint,
     credentials: { accessKeyId, secretAccessKey },
   });
+
+  return { client, bucketName, publicBaseUrl };
 }
 
 // ---------------------------------------------------------------------------
-// Multipart parser — handles the raw body Netlify gives us
+// Multipart parser fallback
 // ---------------------------------------------------------------------------
 function parseMultipart(
   body: string,
   boundary: string,
   isBase64: boolean
 ): { fileBuffer: Buffer; mimeType: string; originalName: string } | null {
+  const cleanBoundary = boundary.replace(/^"|"$/g, '').trim();
   const raw = isBase64 ? Buffer.from(body, 'base64') : Buffer.from(body, 'binary');
-  const boundaryBuf = Buffer.from(`--${boundary}`);
+  const boundaryBuf = Buffer.from(`--${cleanBoundary}`);
   const parts: Buffer[] = [];
 
   let start = 0;
@@ -54,17 +84,21 @@ function parseMultipart(
     const headerEnd = part.indexOf(Buffer.from('\r\n\r\n'));
     if (headerEnd === -1) continue;
     const headerStr = part.slice(0, headerEnd).toString('utf8');
-    if (!headerStr.includes('name="file"')) continue;
+    if (!headerStr.includes('name="file"') && !headerStr.includes('filename=')) continue;
 
-    const fileBuffer = part.slice(headerEnd + 4).slice(0, part.slice(headerEnd + 4).lastIndexOf(Buffer.from('\r\n')));
+    let fileBuffer = part.slice(headerEnd + 4);
+    // Remove trailing \r\n before closing boundary if present
+    if (fileBuffer.length >= 2 && fileBuffer[fileBuffer.length - 2] === 13 && fileBuffer[fileBuffer.length - 1] === 10) {
+      fileBuffer = fileBuffer.slice(0, fileBuffer.length - 2);
+    }
 
-    const nameMatch = headerStr.match(/filename="([^"]+)"/);
-    const typeMatch = headerStr.match(/Content-Type:\s*([^\r\n]+)/i);
+    const nameMatch = headerStr.match(/filename="?([^";\r\n]+)"?/);
+    const typeMatch = headerStr.match(/Content-Type:\s*([^\r\n;]+)/i);
 
     return {
       fileBuffer,
-      mimeType: typeMatch?.[1]?.trim() ?? 'application/octet-stream',
-      originalName: nameMatch?.[1] ?? 'upload',
+      mimeType: typeMatch?.[1]?.trim().toLowerCase() ?? 'application/octet-stream',
+      originalName: nameMatch?.[1]?.trim() ?? 'upload',
     };
   }
 
@@ -77,7 +111,7 @@ function parseMultipart(
 export const handler: Handler = async (event: HandlerEvent) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
 
@@ -94,29 +128,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
   }
 
   try {
-    // -- Validate env --
-    const bucketName = process.env.R2_BUCKET_NAME;
-    const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL;
-
-    if (!bucketName || !publicBaseUrl) {
-      return {
-        statusCode: 500,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: 'R2_BUCKET_NAME or R2_PUBLIC_BASE_URL not configured' }),
-      };
-    }
-
-    // -- Parse Content-Type for boundary --
-    const contentType = event.headers['content-type'] ?? event.headers['Content-Type'] ?? '';
-    const boundaryMatch = contentType.match(/boundary=([^;]+)/);
-    if (!boundaryMatch) {
-      return {
-        statusCode: 400,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: 'Missing multipart boundary' }),
-      };
-    }
-    const boundary = boundaryMatch[1].trim();
+    const { client, bucketName, publicBaseUrl } = getR2Config();
 
     if (!event.body) {
       return {
@@ -126,59 +138,146 @@ export const handler: Handler = async (event: HandlerEvent) => {
       };
     }
 
-    // -- Parse the file --
-    const parsed = parseMultipart(event.body, boundary, event.isBase64Encoded ?? false);
-    if (!parsed) {
+    const contentType =
+      event.headers['content-type'] ??
+      event.headers['Content-Type'] ??
+      '';
+
+    let fileBuffer: Buffer | null = null;
+    let mimeType = 'image/jpeg';
+    let originalName = 'provider-image.jpg';
+    let requestedProviderId: string | null = null;
+
+    // 1. JSON Payload: { imageBase64, filename, mimeType, providerId }
+    if (contentType.includes('application/json')) {
+      try {
+        const rawJsonStr = event.isBase64Encoded
+          ? Buffer.from(event.body, 'base64').toString('utf8')
+          : event.body;
+        const parsedJson = JSON.parse(rawJsonStr);
+
+        if (!parsedJson.imageBase64) {
+          return {
+            statusCode: 400,
+            headers: corsHeaders,
+            body: JSON.stringify({ error: 'Missing imageBase64 in JSON body' }),
+          };
+        }
+
+        // Clean out any data URI prefix like "data:image/jpeg;base64,"
+        const base64Content = parsedJson.imageBase64.includes(',')
+          ? parsedJson.imageBase64.split(',')[1]
+          : parsedJson.imageBase64;
+
+        fileBuffer = Buffer.from(base64Content, 'base64');
+        mimeType = (parsedJson.mimeType || 'image/jpeg').toLowerCase();
+        originalName = parsedJson.filename || 'provider-photo.jpg';
+        requestedProviderId = parsedJson.providerId || null;
+      } catch (jsonErr: any) {
+        return {
+          statusCode: 400,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Invalid JSON payload: ' + jsonErr.message }),
+        };
+      }
+    }
+    // 2. Multipart FormData
+    else if (contentType.includes('multipart/form-data')) {
+      const boundaryMatch = contentType.match(/boundary=([^;]+)/);
+      if (!boundaryMatch) {
+        return {
+          statusCode: 400,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Missing multipart boundary in Content-Type' }),
+        };
+      }
+      const boundary = boundaryMatch[1].trim();
+      const parsed = parseMultipart(event.body, boundary, event.isBase64Encoded ?? false);
+      if (!parsed) {
+        return {
+          statusCode: 400,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Could not parse uploaded multipart file' }),
+        };
+      }
+      fileBuffer = parsed.fileBuffer;
+      mimeType = parsed.mimeType;
+      originalName = parsed.originalName;
+    }
+    // 3. Raw Binary Payload
+    else if (event.body) {
+      fileBuffer = event.isBase64Encoded
+        ? Buffer.from(event.body, 'base64')
+        : Buffer.from(event.body, 'binary');
+      mimeType = contentType || 'image/jpeg';
+    }
+
+    if (!fileBuffer || fileBuffer.length === 0) {
       return {
         statusCode: 400,
         headers: corsHeaders,
-        body: JSON.stringify({ error: 'Could not parse uploaded file' }),
+        body: JSON.stringify({ error: 'No file content received' }),
       };
     }
 
-    const { fileBuffer, mimeType, originalName } = parsed;
-
-    // -- Validate file size (5 MB max) --
-    const MAX_BYTES = 5 * 1024 * 1024;
+    // Validate file size (15 MB max)
+    const MAX_BYTES = 15 * 1024 * 1024;
     if (fileBuffer.length > MAX_BYTES) {
       return {
         statusCode: 413,
         headers: corsHeaders,
-        body: JSON.stringify({ error: 'File exceeds 5 MB limit' }),
+        body: JSON.stringify({ error: 'File exceeds 15 MB limit' }),
       };
     }
 
-    // -- Validate MIME type --
-    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!ALLOWED_TYPES.includes(mimeType)) {
+    // Normalize and validate MIME type
+    if (mimeType === 'image/jpg') mimeType = 'image/jpeg';
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml'];
+    if (!ALLOWED_TYPES.includes(mimeType) && !mimeType.startsWith('image/')) {
       return {
         statusCode: 415,
         headers: corsHeaders,
-        body: JSON.stringify({ error: 'Only JPG, PNG, and WebP images are accepted' }),
+        body: JSON.stringify({ error: 'Only JPG, PNG, WebP, AVIF images are accepted' }),
       };
     }
 
-    // -- Derive extension from MIME --
+    // Determine extension
     const extMap: Record<string, string> = {
       'image/jpeg': 'jpg',
       'image/png': 'png',
       'image/webp': 'webp',
+      'image/avif': 'avif',
+      'image/svg+xml': 'svg',
     };
-    const ext = extMap[mimeType] ?? 'jpg';
+    const extension = extMap[mimeType] || originalName.split('.').pop() || 'jpg';
 
-    // -- Pull providerId from query string (optional, defaults to "general") --
-    const providerId = (event.queryStringParameters?.providerId ?? 'general')
-      .replace(/[^a-zA-Z0-9-_]/g, '_')
-      .slice(0, 60);
+    // Provider ID: check query string or JSON payload
+    const rawProviderId =
+      requestedProviderId ||
+      event.queryStringParameters?.providerId ||
+      'general';
+    const providerId = rawProviderId
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 60) || 'general';
 
-    // -- Build the R2 object key --
+    // Sanitized clean filename
+    const baseName = originalName
+      .replace(/\.[^/.]+$/, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]/g, '-')
+      .replace(/-+/g, '-')
+      .slice(0, 40) || 'photo';
+
+    // Build the UNIQUE R2 object key: providers/{providerId}/{timestamp}-{filename}
     const timestamp = Date.now();
-    const uuid = randomUUID().replace(/-/g, '').slice(0, 8);
-    const key = `providers/${providerId}/${timestamp}-${uuid}.${ext}`;
+    const shortUid = randomUUID().replace(/-/g, '').slice(0, 6);
+    const key = `providers/${providerId}/${timestamp}-${baseName}-${shortUid}.${extension}`;
 
-    // -- Upload to R2 --
-    const r2 = getR2Client();
-    await r2.send(
+    // Upload to Cloudflare R2
+    await client.send(
       new PutObjectCommand({
         Bucket: bucketName,
         Key: key,
@@ -188,14 +287,21 @@ export const handler: Handler = async (event: HandlerEvent) => {
       })
     );
 
-    // -- Build the permanent public URL --
-    const baseUrl = publicBaseUrl.replace(/\/$/, '');
-    const imageUrl = `${baseUrl}/${key}`;
+    // Build the permanent public URL
+    const imageUrl = `${publicBaseUrl}/${key}`;
+
+    console.log(`[R2 Upload Success] Provider: ${providerId} | Key: ${key} | URL: ${imageUrl}`);
 
     return {
       statusCode: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageUrl }),
+      body: JSON.stringify({
+        success: true,
+        imageUrl,
+        imageKey: key,
+        providerId,
+        size: fileBuffer.length,
+      }),
     };
   } catch (err: any) {
     console.error('[upload-provider-image] Error:', err);

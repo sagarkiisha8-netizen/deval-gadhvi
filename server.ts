@@ -78,7 +78,9 @@ async function startServer() {
         httpMethod: req.method,
         headers: req.headers,
         queryStringParameters: req.query,
-        body: Buffer.isBuffer(req.body) ? req.body.toString('binary') : (req.body || ''),
+        body: Buffer.isBuffer(req.body)
+          ? (req.headers['content-type']?.includes('application/json') ? req.body.toString('utf8') : req.body.toString('binary'))
+          : (req.body || ''),
         isBase64Encoded: false,
       };
       const result = await handler(event, {} as any, () => {});

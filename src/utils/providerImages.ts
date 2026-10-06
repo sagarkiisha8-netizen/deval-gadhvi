@@ -6,17 +6,15 @@
  * 2. Fallbacks are strictly keyed by provider ID / slug — NEVER by index or other provider.
  * 3. Cross-doctor photo contamination is strictly prevented (e.g. Dr. Deval's photo never assigned to Dr. Prahlad).
  * 4. Cache-busting parameter (?v=timestamp) is appended if updatedAt exists.
- */
-
-export const DEFAULT_PROVIDER_IMAGES: Record<string, string> = {
-  'prahlad-gadhavi': '/uploads/providers/prahlad-gadhavi-1789541233283.webp',
-  'prahlad-gadhvi': '/uploads/providers/prahlad-gadhavi-1789541233283.webp',
-  'deval-gadhvi': '/newark_internal_medicine_3.webp',
-  'deval-gadhavi': '/newark_internal_medicine_3.webp',
-  'sankalp-pathak': '/uploads/site-media/providers-dr-sankalp.png',
+ */export const DEFAULT_PROVIDER_IMAGES: Record<string, string> = {
+  'prahlad-gadhavi': 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-prahlad-gadhvi/dr-prahlad-gadhavi.webp',
+  'prahlad-gadhvi': 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-prahlad-gadhvi/dr-prahlad-gadhavi.webp',
+  'deval-gadhvi': 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-deval-gadhvi/dr-deval-gadhvi.webp',
+  'deval-gadhavi': 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-deval-gadhvi/dr-deval-gadhvi.webp',
+  'sankalp-pathak': 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-sankalp-pathak/dr-sankalp-pathak.png',
 };
 
-export const GENERIC_DOCTOR_PLACEHOLDER = '/uploads/site-media/providers-dr-sankalp.png';
+export const GENERIC_DOCTOR_PLACEHOLDER = 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-sankalp-pathak/dr-sankalp-pathak.png';
 
 /**
  * Normalizes any provider id, slug, or name to canonical provider keys:
@@ -35,9 +33,10 @@ export function normalizeProviderKey(idOrSlugOrName: string = ''): string {
 /**
  * Resolves the canonical image URL for a provider following strict priority:
  * 1. Homepage override if requesting for homepage (provider.homepageImageOverride)
- * 2. Admin Panel / Database saved image (provider.profileImage, imageUrl, photoUrl, etc.)
- * 3. Correct provider-specific default authentic image (keyed strictly by slug / id)
- * 4. Generic neutral doctor placeholder
+ * 2. Active Cloudflare R2 uploaded image URL (provider.imageUrl, profileImage, etc.)
+ * 3. Database saved image URL (excluding temporary blob URLs)
+ * 4. Correct provider-specific default authentic R2 image (keyed strictly by slug / id)
+ * 5. Generic neutral doctor placeholder
  */
 export function getProviderImage(provider: any, options?: { forHomepage?: boolean }): string {
   if (!provider) return GENERIC_DOCTOR_PLACEHOLDER;
@@ -72,8 +71,8 @@ export function getProviderImage(provider: any, options?: { forHomepage?: boolea
     if (DEFAULT_PROVIDER_IMAGES[key] && (
       trimmed.includes('photo-1622253692010') || 
       trimmed.includes('photo-1594824813581') || 
-      trimmed.includes('photo-1594824813627') ||
-      trimmed.includes('photo-1559839734') ||
+      trimmed.includes('photo-1594824813627') || 
+      trimmed.includes('photo-1559839734') || 
       trimmed.includes('photo-1638202993928')
     )) {
       return DEFAULT_PROVIDER_IMAGES[key];
@@ -88,41 +87,68 @@ export function getProviderImage(provider: any, options?: { forHomepage?: boolea
     return provider.homepageImageOverride.trim();
   }
 
-  // 2. Admin Panel / database saved image (profileImage || imageUrl || photoUrl || image)
-  const rawImage = provider.profileImage || provider.imageUrl || provider.photoUrl || provider.image || provider.photo || provider.avatar || provider.profilePhoto;
-  
-  if (rawImage && typeof rawImage === 'string' && rawImage.trim() !== '') {
-    const rawTrimmed = rawImage.trim();
+  const candidateImages = [
+    provider.imageUrl,
+    provider.profileImage,
+    provider.photoUrl,
+    provider.image,
+    provider.photo,
+    provider.avatar,
+    provider.profilePhoto
+  ];
 
-    // Prevent cross-contamination: Dr. Prahlad must NEVER have Dr. Deval's photos
-    if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
-      rawTrimmed.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
-      rawTrimmed.includes('newark_internal_medicine_3') ||
-      rawTrimmed.includes('newark_internal_medicine_4')
-    )) {
-      return DEFAULT_PROVIDER_IMAGES['prahlad-gadhavi'];
+  // 2a. Priority 1: Cloudflare R2 uploaded URLs always take highest precedence
+  for (const img of candidateImages) {
+    if (typeof img === 'string' && img.trim() !== '') {
+      const trimmed = img.trim();
+      if (trimmed.includes('r2.dev') || trimmed.includes('.r2.cloudflarestorage.com') || (trimmed.startsWith('https://') && trimmed.includes('/providers/'))) {
+        // Prevent cross-contamination
+        if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (trimmed.includes('dr-deval-gadhvi') || trimmed.includes('deval'))) {
+          continue;
+        }
+        if ((key === 'deval-gadhvi' || key === 'deval-gadhavi') && (trimmed.includes('dr-prahlad-gadhvi') || trimmed.includes('prahlad'))) {
+          continue;
+        }
+        return trimmed;
+      }
     }
-
-    // Prevent cross-contamination: Dr. Deval must NEVER have Dr. Prahlad's photo
-    if ((key === 'deval-gadhvi' || key === 'deval-gadhavi') && rawTrimmed.includes('prahlad-gadhavi')) {
-      return DEFAULT_PROVIDER_IMAGES['deval-gadhvi'];
-    }
-
-    // Outdated stock photos for Dr. Deval or Dr. Prahlad replaced by their authentic portraits
-    if (DEFAULT_PROVIDER_IMAGES[key] && (
-      rawTrimmed.includes('photo-1622253692010') || 
-      rawTrimmed.includes('photo-1594824813581') || 
-      rawTrimmed.includes('photo-1594824813627') ||
-      rawTrimmed.includes('photo-1559839734') ||
-      rawTrimmed.includes('photo-1638202993928')
-    )) {
-      return DEFAULT_PROVIDER_IMAGES[key];
-    }
-
-    return rawTrimmed;
   }
 
-  // 3. Correct provider-specific default authentic image
+  // 2b. Priority 2: General database saved image (excluding temporary blob URLs)
+  for (const img of candidateImages) {
+    if (typeof img === 'string' && img.trim() !== '') {
+      const trimmed = img.trim();
+      if (trimmed.startsWith('blob:')) continue; // never persist/render blob outside edit
+
+      // Prevent cross-contamination
+      if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
+        trimmed.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
+        trimmed.includes('newark_internal_medicine_3') ||
+        trimmed.includes('newark_internal_medicine_4') ||
+        trimmed.includes('deval')
+      )) {
+        continue;
+      }
+
+      if ((key === 'deval-gadhvi' || key === 'deval-gadhavi') && trimmed.includes('prahlad')) {
+        continue;
+      }
+
+      if (DEFAULT_PROVIDER_IMAGES[key] && (
+        trimmed.includes('photo-1622253692010') || 
+        trimmed.includes('photo-1594824813581') || 
+        trimmed.includes('photo-1594824813627') || 
+        trimmed.includes('photo-1559839734') || 
+        trimmed.includes('photo-1638202993928')
+      )) {
+        return DEFAULT_PROVIDER_IMAGES[key];
+      }
+
+      return trimmed;
+    }
+  }
+
+  // 3. Provider-specific default authentic image (Cloudflare R2)
   if (DEFAULT_PROVIDER_IMAGES[key]) {
     return DEFAULT_PROVIDER_IMAGES[key];
   }

@@ -3,16 +3,16 @@ import {
   Users, Plus, Edit2, Trash2, Check, X, 
   Search, Image as ImageIcon, Star, Phone, Mail, 
   Globe, Eye, EyeOff, Save, Loader2, Sparkles, ArrowUpDown,
-  Upload, AlertCircle, ExternalLink, RotateCcw
+  Upload, AlertCircle, ExternalLink, RotateCcw, CheckCircle2
 } from 'lucide-react';
 import { 
   collection, onSnapshot, doc, setDoc, deleteDoc, 
-  serverTimestamp, query, orderBy, addDoc 
+  serverTimestamp, query, orderBy, addDoc, getDocs 
 } from 'firebase/firestore';
 import { getDb } from '../../lib/firebase';
 import { Provider } from '../../types';
 import { DEFAULT_PROVIDERS } from '../../data/defaultCmsData';
-import { normalizeProviderKey, DEFAULT_PROVIDER_IMAGES, getProviderImage } from '../../utils/providerImages';
+import { normalizeProviderKey, DEFAULT_PROVIDER_IMAGES, getProviderImage, GENERIC_DOCTOR_PLACEHOLDER } from '../../utils/providerImages';
 import MediaPickerModal from '../components/MediaPickerModal';
 
 export default function ProvidersManager() {
@@ -29,88 +29,119 @@ export default function ProvidersManager() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+  const [photoUploadSuccessMsg, setPhotoUploadSuccessMsg] = useState<string | null>(null);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
 
   const handleDirectPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'profile' | 'homepage' = 'profile') => {
     const file = e.target.files?.[0];
     if (!file || !editingProvider) return;
 
-    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/jpg'];
+    if (!ALLOWED_TYPES.includes(file.type.toLowerCase())) {
       setPhotoUploadError('Please select a valid image (JPG, PNG, WebP, AVIF).');
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setPhotoUploadError('File exceeds 10 MB limit.');
+    if (file.size > 15 * 1024 * 1024) {
+      setPhotoUploadError('File exceeds 15 MB limit.');
       return;
     }
 
+    // Immediate local preview for the modal view while uploading
+    const previewUrl = URL.createObjectURL(file);
+    setLocalPreviewUrl(previewUrl);
+
     setIsUploadingPhoto(true);
     setPhotoUploadError(null);
+    setPhotoUploadSuccessMsg(null);
+
+    const providerName = (editingProvider.name || '').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^dr-/, '').slice(0, 40);
+    const pid = editingProvider.id
+      ? editingProvider.id
+      : providerName
+      ? `dr-${providerName}`
+      : `provider-${Date.now()}`;
 
     try {
-      let finalUrl = '';
+      // 1. Read as Base64 to guarantee 100% reliable transport across serverless environments
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const res = reader.result as string;
+          const commaIdx = res.indexOf(',');
+          resolve(commaIdx !== -1 ? res.slice(commaIdx + 1) : res);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
 
-      // 1. Try uploading to Cloudflare R2
-      // CRITICAL: pid must always be THIS provider's id — never fall back to another doctor's id.
-      // Build a safe pid from the provider's own id or name, never from a different provider.
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const providerName = (editingProvider.name || '').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^dr-/, '').slice(0, 40);
-        const pid = editingProvider.id
-          ? editingProvider.id
-          : providerName
-          ? `dr-${providerName}`
-          : `provider-${Date.now()}`;
-        console.log(`[ProviderUpload] Uploading image for provider: id=${editingProvider.id} name=${editingProvider.name} → R2 key prefix: providers/${pid}/`);
-        const res = await fetch(`/.netlify/functions/upload-provider-image?providerId=${encodeURIComponent(pid)}`, {
-          method: 'POST',
-          body: formData,
-        });
+      console.log(`[ProviderUpload] Uploading image for provider: id=${pid} name=${editingProvider.name} to Cloudflare R2...`);
 
-        if (res.ok) {
-          const json = await res.json();
-          if (json.imageUrl) {
-            finalUrl = json.imageUrl;
-          }
-        }
-      } catch (r2Err) {
-        console.warn('R2 direct endpoint unavailable, using local client preview:', r2Err);
+      const res = await fetch(`/.netlify/functions/upload-provider-image?providerId=${encodeURIComponent(pid)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          providerId: pid,
+          filename: file.name,
+          mimeType: file.type,
+          imageBase64: base64Data,
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `Upload failed with HTTP status ${res.status}`);
       }
 
-      // 2. Client-side local reader fallback if cloud endpoint is not active
-      if (!finalUrl) {
-        finalUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+      const json = await res.json();
+      if (!json.imageUrl || !json.imageUrl.startsWith('http')) {
+        throw new Error('Upload succeeded but no valid public R2 URL was returned');
       }
 
+      const uploadedUrl = json.imageUrl;
+      const oldImageUrl = editingProvider.imageUrl || editingProvider.profileImage || '';
+
+      // Console logging as requested by Requirement 13
+      console.log('Provider ID:', pid);
+      console.log('Provider Name:', editingProvider.name);
+      console.log('Old imageUrl:', oldImageUrl);
+      console.log('Uploaded R2 URL:', uploadedUrl);
+
+      // Permanently attach the R2 URL to editing state
       if (target === 'homepage') {
-        setEditingProvider(prev => prev ? { ...prev, homepageImageOverride: finalUrl } : null);
+        setEditingProvider(prev => prev ? { ...prev, homepageImageOverride: uploadedUrl } : null);
       } else {
-        setEditingProvider(prev => prev ? { ...prev, imageUrl: finalUrl, photoUrl: finalUrl, profileImage: finalUrl } : null);
+        setEditingProvider(prev => prev ? {
+          ...prev,
+          imageUrl: uploadedUrl,
+          photoUrl: uploadedUrl,
+          profileImage: uploadedUrl,
+          imageKey: json.imageKey || json.key || '',
+        } : null);
       }
 
+      setPhotoUploadSuccessMsg('Image uploaded successfully');
+      setPhotoUploadError(null);
+
+      // Optionally record in media library collection
       try {
         const db = getDb();
         await addDoc(collection(db, 'media_library'), {
           name: file.name,
-          url: finalUrl,
+          url: uploadedUrl,
           size: file.size,
           type: file.type,
           altText: editingProvider.name || file.name.split('.')[0],
-          source: finalUrl.startsWith('data:') ? 'local-upload' : 'r2',
+          source: 'r2',
           createdAt: serverTimestamp(),
         });
       } catch (e) {
         console.warn('Media library log skipped:', e);
       }
     } catch (err: any) {
-      console.error('Direct photo upload error:', err);
-      setPhotoUploadError(err.message || 'Failed to read image from device.');
+      console.error('[ProviderUpload] Direct upload failed:', err);
+      // CRITICAL: NEVER set editingProvider.imageUrl to temporary object URL or data URL!
+      setPhotoUploadError(`Image upload failed: ${err.message || 'Could not upload to Cloudflare R2'}`);
+      setPhotoUploadSuccessMsg(null);
     } finally {
       setIsUploadingPhoto(false);
       e.target.value = '';
@@ -136,17 +167,26 @@ export default function ProvidersManager() {
               raw.profileImage?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') || 
               raw.photoUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0')
             )) {
-              raw.imageUrl = '/uploads/providers/prahlad-gadhavi-1789541233283.webp';
-              raw.profileImage = '/uploads/providers/prahlad-gadhavi-1789541233283.webp';
-              raw.photoUrl = '/uploads/providers/prahlad-gadhavi-1789541233283.webp';
+              const fallbackUrl = DEFAULT_PROVIDER_IMAGES['prahlad-gadhavi'];
+              raw.imageUrl = fallbackUrl;
+              raw.profileImage = fallbackUrl;
+              raw.photoUrl = fallbackUrl;
             }
 
             if (!canonicalMap.has(key)) {
               canonicalMap.set(key, raw);
             } else {
               const existing = canonicalMap.get(key)!;
-              const existingTime = new Date(existing.updatedAt || 0).getTime();
-              const currTime = new Date(raw.updatedAt || 0).getTime();
+              const parseTs = (t: any): number => {
+                if (!t) return 0;
+                if (typeof t === 'number') return t;
+                if (typeof t?.toMillis === 'function') return t.toMillis();
+                if (t?.seconds) return t.seconds * 1000;
+                const n = new Date(t).getTime();
+                return isNaN(n) ? 0 : n;
+              };
+              const existingTime = parseTs(existing.updatedAt);
+              const currTime = parseTs(raw.updatedAt);
               if (currTime > existingTime || (!existing.imageUrl && raw.imageUrl)) {
                 canonicalMap.set(key, { ...existing, ...raw });
               }
@@ -155,6 +195,9 @@ export default function ProvidersManager() {
           const list = Array.from(canonicalMap.values());
           list.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
           setProviders(list);
+          try {
+            localStorage.setItem('newark_cms_providers', JSON.stringify(list));
+          } catch {}
         } else {
           setProviders(DEFAULT_PROVIDERS);
         }
@@ -173,6 +216,9 @@ export default function ProvidersManager() {
 
   const handleOpenAdd = () => {
     const newId = `dr-${Date.now()}`;
+    setLocalPreviewUrl(null);
+    setPhotoUploadError(null);
+    setPhotoUploadSuccessMsg(null);
     setEditingProvider({
       id: newId,
       name: '',
@@ -181,8 +227,8 @@ export default function ProvidersManager() {
       specialty: 'Internal Medicine & Preventative Care',
       bio: '',
       fullBio: '',
-      imageUrl: '/uploads/site-media/providers-dr-sankalp.png',
-      profileImage: '/uploads/site-media/providers-dr-sankalp.png',
+      imageUrl: DEFAULT_PROVIDER_IMAGES['sankalp-pathak'] || '',
+      profileImage: DEFAULT_PROVIDER_IMAGES['sankalp-pathak'] || '',
       homepageImageOverride: '',
       altText: '',
       experienceYears: 10,
@@ -208,6 +254,9 @@ export default function ProvidersManager() {
   };
 
   const handleOpenEdit = (p: Provider) => {
+    setLocalPreviewUrl(null);
+    setPhotoUploadError(null);
+    setPhotoUploadSuccessMsg(null);
     setEditingProvider({ 
       ...p,
       profileImage: p.profileImage || p.imageUrl || p.photoUrl,
@@ -222,6 +271,17 @@ export default function ProvidersManager() {
     e.preventDefault();
     if (!editingProvider || !editingProvider.name?.trim()) return;
 
+    if (isUploadingPhoto) {
+      alert('Please wait for the image upload to complete.');
+      return;
+    }
+
+    const currentImg = (editingProvider.imageUrl || editingProvider.profileImage || editingProvider.photoUrl || '').trim();
+    if (currentImg.startsWith('blob:') || currentImg.startsWith('data:')) {
+      setPhotoUploadError('Temporary image preview cannot be saved. Please wait for the Cloudflare R2 upload to complete.');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const db = getDb();
@@ -230,13 +290,16 @@ export default function ProvidersManager() {
       const isPrahlad = canonicalKey === 'prahlad-gadhavi' || canonicalKey === 'prahlad-gadhvi';
       const canonicalId = isPrahlad ? 'dr-prahlad-gadhvi' : id;
 
+      const originalProvider = providers.find(p => normalizeProviderKey(p.id || p.slug || p.name) === canonicalKey);
+
       const payload: Partial<Provider> = {
         ...editingProvider,
         id: canonicalId,
         slug: editingProvider.slug || (isPrahlad ? 'dr-prahlad-gadhvi' : editingProvider.name.toLowerCase().replace(/[^a-z0-9]/g, '-')),
-        profileImage: editingProvider.profileImage || editingProvider.imageUrl || editingProvider.photoUrl,
-        imageUrl: editingProvider.imageUrl || editingProvider.profileImage || editingProvider.photoUrl,
-        photoUrl: editingProvider.imageUrl || editingProvider.profileImage || editingProvider.photoUrl,
+        profileImage: currentImg,
+        imageUrl: currentImg,
+        photoUrl: currentImg,
+        imageKey: editingProvider.imageKey || '',
         homepageImageOverride: editingProvider.homepageImageOverride?.trim() || '',
         altText: editingProvider.altText?.trim() || editingProvider.name,
         showOnHomepage: editingProvider.showOnHomepage ?? true,
@@ -246,31 +309,47 @@ export default function ProvidersManager() {
       };
 
       await setDoc(doc(db, 'providers', canonicalId), payload, { merge: true });
-      console.log(`[ProvidersManager] Saved provider id=${canonicalId} imageUrl=${payload.imageUrl}`);
 
       // Clean up orphaned duplicates only
       if (isPrahlad) {
         try {
           await deleteDoc(doc(db, 'providers', 'dr-prahlad-gadhavi'));
         } catch (e) {}
-        // NOTE: We no longer write to doctor_profile/main — that deprecated collection
-        // was causing cross-provider image contamination. The providers collection is
-        // the single source of truth for all provider data including images.
       }
-      
-      // Update local state optimistic
-      setProviders(prev => {
-        const canonicalKey = normalizeProviderKey(canonicalId);
-        const filtered = prev.filter(p => normalizeProviderKey(p.id || p.slug || p.name) !== canonicalKey);
-        const next = [...filtered, payload as Provider];
-        next.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
-        return next;
-      });
+
+      // Requirement 13: Temporary console logging for verification
+      console.log('Provider ID:', canonicalId);
+      console.log('Provider Name:', payload.name);
+      console.log('Old imageUrl:', originalProvider?.imageUrl || '(none)');
+      console.log('Uploaded R2 URL:', currentImg);
+      console.log('Saved imageUrl:', currentImg);
+      console.log('API save response:', `Success: Persisted to Firestore providers/${canonicalId}`);
+
+      // Requirement 14: Automatically refetch provider data from the actual persistent source
+      const snap = await getDocs(query(collection(db, 'providers'), orderBy('displayOrder', 'asc')));
+      if (!snap.empty) {
+        const canonicalMap = new Map<string, Provider>();
+        snap.forEach(d => {
+          const raw = { id: d.id, ...(d.data() as any) } as Provider;
+          const key = normalizeProviderKey(raw.id || raw.slug || raw.name || '');
+          canonicalMap.set(key, raw);
+        });
+        const list = Array.from(canonicalMap.values());
+        list.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+        setProviders(list);
+        try {
+          localStorage.setItem('newark_cms_providers', JSON.stringify(list));
+        } catch {}
+      }
 
       setIsModalOpen(false);
       setEditingProvider(null);
-    } catch (err) {
+      setLocalPreviewUrl(null);
+      setPhotoUploadError(null);
+      setPhotoUploadSuccessMsg(null);
+    } catch (err: any) {
       console.error('Error saving provider:', err);
+      setPhotoUploadError('Error saving provider changes: ' + (err.message || 'Unknown error'));
     } finally {
       setIsSaving(false);
     }
@@ -584,7 +663,7 @@ export default function ProvidersManager() {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-5">
                   <div className="w-24 h-28 rounded-2xl bg-slate-200 overflow-hidden shrink-0 border-2 border-white shadow-sm relative">
                     <img
-                      src={editingProvider.imageUrl || editingProvider.profileImage || '/uploads/site-media/providers-dr-sankalp.png'}
+                      src={localPreviewUrl || editingProvider.imageUrl || editingProvider.profileImage || DEFAULT_PROVIDER_IMAGES[normalizeProviderKey(editingProvider.id || editingProvider.name || '')] || GENERIC_DOCTOR_PLACEHOLDER}
                       alt="Provider preview"
                       className="w-full h-full object-cover"
                     />
@@ -653,10 +732,24 @@ export default function ProvidersManager() {
                   </div>
                 </div>
 
-                {photoUploadError && (
+                {isUploadingPhoto && (
+                  <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin text-amber-600 shrink-0" />
+                    <span className="font-medium">Uploading image to Cloudflare R2...</span>
+                  </div>
+                )}
+
+                {photoUploadSuccessMsg && !isUploadingPhoto && (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
+                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                    <span className="font-medium">{photoUploadSuccessMsg}</span>
+                  </div>
+                )}
+
+                {photoUploadError && !isUploadingPhoto && (
                   <div className="p-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
-                    <AlertCircle size={14} className="shrink-0" />
-                    <span>{photoUploadError}</span>
+                    <AlertCircle size={14} className="shrink-0 text-red-600" />
+                    <span className="font-medium">{photoUploadError}</span>
                   </div>
                 )}
               </div>
@@ -958,11 +1051,11 @@ export default function ProvidersManager() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSaving}
-                  className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl text-xs shadow-md flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                  disabled={isSaving || isUploadingPhoto}
+                  className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-xl text-xs shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                  <span>Save Provider Changes</span>
+                  <span>{isSaving ? 'Saving Changes...' : isUploadingPhoto ? 'Uploading Photo...' : 'Save Provider Changes'}</span>
                 </button>
               </div>
             </form>
