@@ -7,10 +7,22 @@ import { useCmsData } from '../context/CmsContext';
 export default function EditorialAboutSection() {
   const { homeContent, getMediaUrl, getSiteMedia } = useCmsData();
   const mediaItem = getSiteMedia('homepage', 'aboutPreview', 'featured');
-  const aboutImage = getMediaUrl('homepage', 'aboutPreview', 'featured') || 
-    homeContent?.aboutPreview?.imageUrl || 
-    homeContent?.aboutPreview?.image || 
-    "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&q=85&w=2000";
+
+  // Priority: 1) Firestore site_media (admin-set custom image)
+  //           2) Firestore pages/home aboutPreview.imageUrl (R2 clinic image)
+  //           3) Static facility/interior default (NOT a doctor portrait)
+  // NOTE: We intentionally exclude the stock-doctor photo (photo-1622253692010)
+  // from any fallback — clinic/facility images must NEVER fall back to doctor portraits.
+  const CLINIC_INTERIOR_FALLBACK = 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=85&w=2000';
+  const siteMediaUrl = getMediaUrl('homepage', 'aboutPreview', 'featured');
+  // If siteMedia returned the legacy stock doctor photo as default, prefer homeContent R2 URL
+  const isStockDoctorPhoto = siteMediaUrl?.includes('photo-1622253692010');
+  const aboutImage = (siteMediaUrl && !isStockDoctorPhoto)
+    ? siteMediaUrl
+    : (homeContent?.aboutPreview?.imageUrl ||
+       homeContent?.aboutPreview?.image ||
+       CLINIC_INTERIOR_FALLBACK);
+
   const aboutTitle = homeContent?.aboutPreview?.headline || "Better care starts with better listening.";
   const aboutBody = homeContent?.aboutPreview?.body || "Founded on the belief that medicine is fundamentally about human relationships, our practice has served Newark and the greater Essex County community with unhurried clinical attention for over two decades.";
 
