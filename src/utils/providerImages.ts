@@ -2,158 +2,110 @@
  * Centralized Provider Image & Identity Mapping Utility
  *
  * Rules:
- * 1. Admin Panel saved image ALWAYS takes precedence.
- * 2. Fallbacks are strictly keyed by provider ID / slug — NEVER by index or other provider.
- * 3. Cross-doctor photo contamination is strictly prevented (e.g. Dr. Deval's photo never assigned to Dr. Prahlad).
+ * 1. provider.imageUrl saved in persistent provider data ALWAYS takes highest precedence.
+ * 2. Fallbacks are strictly keyed by provider slug/id — NEVER by index or other provider.
+ * 3. Cross-doctor photo contamination is strictly prevented.
  * 4. Cache-busting parameter (?v=timestamp) is appended if updatedAt exists.
- */export const DEFAULT_PROVIDER_IMAGES: Record<string, string> = {
-  'prahlad-gadhavi': 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-prahlad-gadhvi/dr-prahlad-gadhavi.webp',
-  'prahlad-gadhvi': 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-prahlad-gadhvi/dr-prahlad-gadhavi.webp',
-  'deval-gadhvi': 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-deval-gadhvi/dr-deval-gadhvi.webp',
-  'deval-gadhavi': 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-deval-gadhvi/dr-deval-gadhvi.webp',
-  'sankalp-pathak': 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-sankalp-pathak/dr-sankalp-pathak.png',
+ */
+
+export const DEFAULT_PROVIDER_IMAGES: Record<string, string> = {
+  'dr-prahlad-gadhvi': 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-prahlad-gadhavi/1791280065505-dr-prahlad-gadhavi.png',
+  'dr-deval-gadhvi': 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-deval-gadhvi/dr-deval-gadhvi.webp',
+  'dr-sankalp-pathak': 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-sankalp-pathak/dr-sankalp-pathak.png',
 };
 
 export const GENERIC_DOCTOR_PLACEHOLDER = 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-sankalp-pathak/dr-sankalp-pathak.png';
 
 /**
- * Normalizes any provider id, slug, or name to canonical provider keys:
- * - 'prahlad-gadhavi'
- * - 'deval-gadhvi'
- * - 'sankalp-pathak'
+ * Normalizes any provider id, slug, or name to canonical provider slugs:
+ * - 'dr-prahlad-gadhvi'
+ * - 'dr-deval-gadhvi'
+ * - 'dr-sankalp-pathak'
  */
 export function normalizeProviderKey(idOrSlugOrName: string = ''): string {
   const clean = (idOrSlugOrName || '').toLowerCase().trim();
-  if (clean.includes('prahlad')) return 'prahlad-gadhavi';
-  if (clean.includes('deval')) return 'deval-gadhvi';
-  if (clean.includes('sankalp')) return 'sankalp-pathak';
-  return clean.replace(/^dr-/, '').replace(/^dr\.\s*/, '');
+  if (clean.includes('prahlad')) return 'dr-prahlad-gadhvi';
+  if (clean.includes('deval')) return 'dr-deval-gadhvi';
+  if (clean.includes('sankalp')) return 'dr-sankalp-pathak';
+  return clean.startsWith('dr-') ? clean : `dr-${clean}`;
 }
 
 /**
  * Resolves the canonical image URL for a provider following strict priority:
- * 1. Homepage override if requesting for homepage (provider.homepageImageOverride)
- * 2. Active Cloudflare R2 uploaded image URL (provider.imageUrl, profileImage, etc.)
- * 3. Database saved image URL (excluding temporary blob URLs)
- * 4. Correct provider-specific default authentic R2 image (keyed strictly by slug / id)
- * 5. Generic neutral doctor placeholder
+ * 1. Homepage override ONLY if explicitly requesting for homepage (provider.homepageImageOverride)
+ * 2. Persistent provider.imageUrl / profileImage / photoUrl / image (CANONICAL FIELD: provider.imageUrl)
+ * 3. Provider-specific authentic default R2 image (strictly keyed by doctor slug)
+ * 4. Generic neutral doctor placeholder
  */
 export function getProviderImage(provider: any, options?: { forHomepage?: boolean }): string {
   if (!provider) return GENERIC_DOCTOR_PLACEHOLDER;
 
-  // Direct string passed
+  // Direct string passed (e.g. image URL or slug)
   if (typeof provider === 'string' && provider.trim() !== '') {
     const trimmed = provider.trim();
     const key = normalizeProviderKey(trimmed);
 
-    // If a doctor name or slug was passed directly
+    // If just a slug or doctor name was passed
     if (!trimmed.startsWith('http') && !trimmed.startsWith('/') && !trimmed.startsWith('data:')) {
       if (DEFAULT_PROVIDER_IMAGES[key]) {
         return DEFAULT_PROVIDER_IMAGES[key];
       }
     }
 
-    // Check if it's the reversed female framer photo incorrectly passed for Dr. Prahlad
-    if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
+    // Reject legacy swapped / static / wrong paths for Dr. Prahlad
+    if (key === 'dr-prahlad-gadhvi' && (
       trimmed.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
       trimmed.includes('newark_internal_medicine_3') ||
-      trimmed.includes('newark_internal_medicine_4')
+      trimmed.includes('newark_internal_medicine_4') ||
+      trimmed.includes('uploads/providers') ||
+      trimmed.includes('deval')
     )) {
-      return DEFAULT_PROVIDER_IMAGES['prahlad-gadhavi'];
+      return DEFAULT_PROVIDER_IMAGES['dr-prahlad-gadhvi'];
     }
 
-    // Prevent cross-contamination: Dr. Deval must NEVER have Dr. Prahlad's photo
-    if ((key === 'deval-gadhvi' || key === 'deval-gadhavi') && trimmed.includes('prahlad-gadhavi')) {
-      return DEFAULT_PROVIDER_IMAGES['deval-gadhvi'];
+    // Reject Dr. Prahlad photo for Dr. Deval
+    if (key === 'dr-deval-gadhvi' && trimmed.includes('prahlad')) {
+      return DEFAULT_PROVIDER_IMAGES['dr-deval-gadhvi'];
     }
 
-    // Outdated generic stock photos for a known doctor
-    if (DEFAULT_PROVIDER_IMAGES[key] && (
-      trimmed.includes('photo-1622253692010') || 
-      trimmed.includes('photo-1594824813581') || 
-      trimmed.includes('photo-1594824813627') || 
-      trimmed.includes('photo-1559839734') || 
-      trimmed.includes('photo-1638202993928')
-    )) {
-      return DEFAULT_PROVIDER_IMAGES[key];
-    }
     return trimmed;
   }
 
   const key = normalizeProviderKey(provider.id || provider.slug || provider.name || '');
 
-  // 1. Homepage override if requested for homepage
+  // 1. Homepage override ONLY if requested for homepage
   if (options?.forHomepage && provider.homepageImageOverride && typeof provider.homepageImageOverride === 'string' && provider.homepageImageOverride.trim() !== '') {
     return provider.homepageImageOverride.trim();
   }
 
-  const candidateImages = [
-    provider.imageUrl,
-    provider.profileImage,
-    provider.photoUrl,
-    provider.image,
-    provider.photo,
-    provider.avatar,
-    provider.profilePhoto
-  ];
+  // 2. CANONICAL FIELD: provider.imageUrl (Priority 1)
+  const candidate = (provider.imageUrl || provider.profileImage || provider.photoUrl || provider.image || '').trim();
 
-  // 2a. Priority 1: Cloudflare R2 uploaded URLs always take highest precedence
-  for (const img of candidateImages) {
-    if (typeof img === 'string' && img.trim() !== '') {
-      const trimmed = img.trim();
-      if (trimmed.includes('r2.dev') || trimmed.includes('.r2.cloudflarestorage.com') || (trimmed.startsWith('https://') && trimmed.includes('/providers/'))) {
-        // Prevent cross-contamination
-        if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (trimmed.includes('dr-deval-gadhvi') || trimmed.includes('deval'))) {
-          continue;
-        }
-        if ((key === 'deval-gadhvi' || key === 'deval-gadhavi') && (trimmed.includes('dr-prahlad-gadhvi') || trimmed.includes('prahlad'))) {
-          continue;
-        }
-        return trimmed;
-      }
+  if (candidate && !candidate.startsWith('blob:')) {
+    // Sanitize against legacy swapped image / static uploads
+    const isPrahladSwapped = (key === 'dr-prahlad-gadhvi') && (
+      candidate.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
+      candidate.includes('newark_internal_medicine_3') ||
+      candidate.includes('newark_internal_medicine_4') ||
+      candidate.includes('uploads/providers') ||
+      candidate.includes('dr-deval-gadhvi') ||
+      candidate.includes('deval')
+    );
+
+    const isDevalSwapped = (key === 'dr-deval-gadhvi') && (
+      candidate.includes('prahlad')
+    );
+
+    if (!isPrahladSwapped && !isDevalSwapped) {
+      return candidate;
     }
   }
 
-  // 2b. Priority 2: General database saved image (excluding temporary blob URLs)
-  for (const img of candidateImages) {
-    if (typeof img === 'string' && img.trim() !== '') {
-      const trimmed = img.trim();
-      if (trimmed.startsWith('blob:')) continue; // never persist/render blob outside edit
-
-      // Prevent cross-contamination
-      if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
-        trimmed.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
-        trimmed.includes('newark_internal_medicine_3') ||
-        trimmed.includes('newark_internal_medicine_4') ||
-        trimmed.includes('deval')
-      )) {
-        continue;
-      }
-
-      if ((key === 'deval-gadhvi' || key === 'deval-gadhavi') && trimmed.includes('prahlad')) {
-        continue;
-      }
-
-      if (DEFAULT_PROVIDER_IMAGES[key] && (
-        trimmed.includes('photo-1622253692010') || 
-        trimmed.includes('photo-1594824813581') || 
-        trimmed.includes('photo-1594824813627') || 
-        trimmed.includes('photo-1559839734') || 
-        trimmed.includes('photo-1638202993928')
-      )) {
-        return DEFAULT_PROVIDER_IMAGES[key];
-      }
-
-      return trimmed;
-    }
-  }
-
-  // 3. Provider-specific default authentic image (Cloudflare R2)
+  // 3. Fallback to DEFAULT_PROVIDER_IMAGES strictly if imageUrl is empty or was swapped
   if (DEFAULT_PROVIDER_IMAGES[key]) {
     return DEFAULT_PROVIDER_IMAGES[key];
   }
 
-  // 4. Generic neutral doctor placeholder
   return GENERIC_DOCTOR_PLACEHOLDER;
 }
 
@@ -179,14 +131,11 @@ export function getAuthorAvatar(author: any, providers?: any[], authors?: any[])
     }
   }
 
-  // 2. Check if there is an active matching Provider in the CMS/Firestore providers list
+  // 2. Check if author matches one of our primary doctors
   if (Array.isArray(providers) && providers.length > 0 && canonicalKey) {
-    const matchedProvider = providers.find(p => {
-      const pKey = normalizeProviderKey(p.id || p.slug || p.name || '');
-      return pKey === canonicalKey;
-    });
-    if (matchedProvider) {
-      const pImg = getProviderImage(matchedProvider);
+    const matchedDoctor = providers.find(p => normalizeProviderKey(p.id || p.slug || p.name) === canonicalKey);
+    if (matchedDoctor) {
+      const pImg = getProviderImage(matchedDoctor);
       if (pImg) return pImg;
     }
   }

@@ -250,9 +250,9 @@ export default function WebsiteImagesManager() {
       const isSankalp = pKey === 'sankalp-pathak';
 
       const defaultProfile = isPrahlad 
-        ? '/uploads/providers/prahlad-gadhavi-1789541233283.webp'
+        ? 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-prahlad-gadhavi/1791280065505-dr-prahlad-gadhavi.png'
         : isDeval 
-          ? 'https://framerusercontent.com/images/aU1QUlSKO9mpYg2rCyxW7d2q0.png?width=898&height=1194'
+          ? 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-deval-gadhvi/dr-deval-gadhvi.webp'
           : '/uploads/site-media/providers-dr-sankalp.png';
 
       const activeProfileUrl = getProviderImage(p);

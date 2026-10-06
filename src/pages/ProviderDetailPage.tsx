@@ -68,7 +68,7 @@ function getDefaultDoctorData(normalizedSlug: string): DoctorDetailData | null {
 const FALLBACK_DOCTOR_DATA: DoctorDetailData = {
   name: 'Our Physician',
   role: 'Primary Care Physician',
-  image: '/uploads/providers/prahlad-gadhavi-1789541233283.webp',
+  image: 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-prahlad-gadhavi/1791280065505-dr-prahlad-gadhavi.png',
   experience: '',
   qualifications: 'MD',
   location: '337, Bloomfield Avenue, Newark, NJ-07107',

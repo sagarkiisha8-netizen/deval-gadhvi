@@ -100,11 +100,18 @@ export default function ProvidersManager() {
       const uploadedUrl = json.imageUrl;
       const oldImageUrl = editingProvider.imageUrl || editingProvider.profileImage || '';
 
-      // Console logging as requested by Requirement 13
+      // PART 9 Debug Logging
+      console.log('--- Provider Upload Success ---');
       console.log('Provider ID:', pid);
-      console.log('Provider Name:', editingProvider.name);
-      console.log('Old imageUrl:', oldImageUrl);
-      console.log('Uploaded R2 URL:', uploadedUrl);
+      console.log('Provider slug:', editingProvider.slug || pid);
+      console.log('Current provider.imageUrl:', oldImageUrl);
+      console.log('Admin displayed image:', uploadedUrl);
+      console.log('Selected filename:', file.name);
+      console.log('R2 endpoint:', 'https://93888554ef9d9e0b8c18b322683a9652.r2.cloudflarestorage.com');
+      console.log('R2 object key:', json.imageKey || '');
+      console.log('Upload response:', json);
+      console.log('New public URL:', uploadedUrl);
+      console.log('Saved provider.imageUrl:', uploadedUrl);
 
       // Permanently attach the R2 URL to editing state
       if (target === 'homepage') {
@@ -115,11 +122,26 @@ export default function ProvidersManager() {
           imageUrl: uploadedUrl,
           photoUrl: uploadedUrl,
           profileImage: uploadedUrl,
+          image: uploadedUrl,
           imageKey: json.imageKey || json.key || '',
         } : null);
       }
+      setLocalPreviewUrl(null);
 
-      setPhotoUploadSuccessMsg('Image uploaded successfully');
+      // Instant persistent save to Firestore for uninterrupted synchronization
+      try {
+        const db = getDb();
+        const docId = pid;
+        const updatePayload: any = target === 'homepage'
+          ? { homepageImageOverride: uploadedUrl, updatedAt: serverTimestamp() }
+          : { imageUrl: uploadedUrl, profileImage: uploadedUrl, photoUrl: uploadedUrl, image: uploadedUrl, imageKey: json.imageKey || '', updatedAt: serverTimestamp() };
+        await setDoc(doc(db, 'providers', docId), updatePayload, { merge: true });
+        console.log('Provider refetch result: Auto-persisted to Firestore providers/' + docId);
+      } catch (e) {
+        console.warn('Auto-persist deferred to form submit:', e);
+      }
+
+      setPhotoUploadSuccessMsg('Image uploaded successfully to Cloudflare R2');
       setPhotoUploadError(null);
 
       // Optionally record in media library collection
@@ -161,13 +183,19 @@ export default function ProvidersManager() {
             const raw = { id: d.id, ...(d.data() as any) } as Provider;
             const key = normalizeProviderKey(raw.id || raw.slug || raw.name || '');
 
-            // Data sanitization: Dr. Prahlad must never hold the swapped female Framer image
-            if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
+            // Data sanitization: Dr. Prahlad must never hold the swapped female Framer image or legacy static paths
+            if ((key === 'dr-prahlad-gadhvi' || key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
               raw.imageUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
               raw.profileImage?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
-              raw.photoUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0')
+              raw.photoUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
+              raw.imageUrl?.includes('uploads/providers') ||
+              raw.profileImage?.includes('uploads/providers') ||
+              raw.photoUrl?.includes('uploads/providers') ||
+              raw.imageUrl?.includes('newark_internal_medicine_3') ||
+              raw.imageUrl?.includes('newark_internal_medicine_4') ||
+              raw.imageUrl?.includes('dr-deval-gadhvi')
             )) {
-              const fallbackUrl = DEFAULT_PROVIDER_IMAGES['prahlad-gadhavi'];
+              const fallbackUrl = DEFAULT_PROVIDER_IMAGES['dr-prahlad-gadhvi'];
               raw.imageUrl = fallbackUrl;
               raw.profileImage = fallbackUrl;
               raw.photoUrl = fallbackUrl;
@@ -257,10 +285,12 @@ export default function ProvidersManager() {
     setLocalPreviewUrl(null);
     setPhotoUploadError(null);
     setPhotoUploadSuccessMsg(null);
+    const canonicalImg = getProviderImage(p);
     setEditingProvider({
       ...p,
-      profileImage: p.profileImage || p.imageUrl || p.photoUrl,
-      imageUrl: p.imageUrl || p.photoUrl || p.profileImage,
+      profileImage: p.imageUrl || canonicalImg,
+      imageUrl: p.imageUrl || canonicalImg,
+      photoUrl: p.imageUrl || canonicalImg,
       showOnHomepage: p.showOnHomepage !== false,
       showOnProvidersPage: p.showOnProvidersPage !== false,
     });
@@ -660,7 +690,7 @@ export default function ProvidersManager() {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-5">
                   <div className="w-24 h-28 rounded-2xl bg-slate-200 overflow-hidden shrink-0 border-2 border-white shadow-sm relative">
                     <img
-                      src={localPreviewUrl || editingProvider.imageUrl || editingProvider.profileImage || DEFAULT_PROVIDER_IMAGES[normalizeProviderKey(editingProvider.id || editingProvider.name || '')] || GENERIC_DOCTOR_PLACEHOLDER}
+                      src={localPreviewUrl || editingProvider.imageUrl || getProviderImage(editingProvider)}
                       alt="Provider preview"
                       className="w-full h-full object-cover"
                     />
@@ -673,7 +703,7 @@ export default function ProvidersManager() {
                           type="button"
                           onClick={() => {
                             const key = normalizeProviderKey(editingProvider.id || editingProvider.slug || editingProvider.name);
-                            const def = DEFAULT_PROVIDER_IMAGES[key] || '/uploads/site-media/providers-dr-sankalp.png';
+                            const def = DEFAULT_PROVIDER_IMAGES[key] || GENERIC_DOCTOR_PLACEHOLDER;
                             setEditingProvider(prev => prev ? { ...prev, imageUrl: def, photoUrl: def, profileImage: def } : null);
                           }}
                           className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"

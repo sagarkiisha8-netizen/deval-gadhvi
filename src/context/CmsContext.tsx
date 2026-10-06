@@ -283,13 +283,19 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
             const raw = { id: d.id, ...(d.data() as any) } as Provider;
             const key = normalizeProviderKey(raw.id || raw.slug || raw.name || '');
 
-            // Data sanitization: Dr. Prahlad must never hold the swapped female Framer image
-            if ((key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
+            // Data sanitization: Dr. Prahlad must never hold the swapped female Framer image or legacy static paths
+            if ((key === 'dr-prahlad-gadhvi' || key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
               raw.imageUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
               raw.profileImage?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
-              raw.photoUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0')
+              raw.photoUrl?.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
+              raw.imageUrl?.includes('uploads/providers') ||
+              raw.profileImage?.includes('uploads/providers') ||
+              raw.photoUrl?.includes('uploads/providers') ||
+              raw.imageUrl?.includes('newark_internal_medicine_3') ||
+              raw.imageUrl?.includes('newark_internal_medicine_4') ||
+              raw.imageUrl?.includes('dr-deval-gadhvi')
             )) {
-              const fallbackUrl = DEFAULT_PROVIDER_IMAGES['prahlad-gadhavi'];
+              const fallbackUrl = DEFAULT_PROVIDER_IMAGES['dr-prahlad-gadhvi'];
               raw.imageUrl = fallbackUrl;
               raw.profileImage = fallbackUrl;
               raw.photoUrl = fallbackUrl;
