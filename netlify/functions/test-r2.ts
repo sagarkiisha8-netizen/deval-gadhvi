@@ -112,6 +112,23 @@ export const handler: Handler = async (event: HandlerEvent) => {
       }),
     };
   } catch (err: any) {
+    let diag: any = {};
+    try {
+      const cfg = getR2Client();
+      diag = {
+        r2AccountIdExists: Boolean(process.env.R2_ACCOUNT_ID),
+        r2AccountIdLength: (process.env.R2_ACCOUNT_ID || '').length,
+        r2AccessKeyExists: Boolean(process.env.R2_ACCESS_KEY_ID),
+        r2SecretKeyExists: Boolean(process.env.R2_SECRET_ACCESS_KEY),
+        r2BucketName: cfg.bucketName,
+        r2PublicUrlExists: Boolean(process.env.R2_PUBLIC_URL || process.env.R2_PUBLIC_BASE_URL),
+        computedEndpoint: cfg.endpoint,
+        computedAccountIdMasked: `${cfg.accountId.slice(0, 4)}...${cfg.accountId.slice(-4)}`,
+      };
+    } catch (e: any) {
+      diag = { diagError: e.message };
+    }
+
     return {
       statusCode: 500,
       headers: corsHeaders,
@@ -120,6 +137,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
         error: err.message,
         name: err.name,
         code: err.code,
+        diagnostic: diag,
       }),
     };
   }
