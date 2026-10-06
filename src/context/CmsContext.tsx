@@ -18,6 +18,7 @@ import {
   DEFAULT_BLOG_CATEGORIES, DEFAULT_BLOG_AUTHORS, DEFAULT_BLOG_TAGS, DEFAULT_PAGE_SEO 
 } from '../data/defaultCmsData';
 import { normalizeProviderKey, DEFAULT_PROVIDER_IMAGES } from '../utils/providerImages';
+import { DEFAULT_SITE_MEDIA } from '../data/defaultSiteMedia';
 
 interface CmsContextType {
   homeContent: HomePageContent;
