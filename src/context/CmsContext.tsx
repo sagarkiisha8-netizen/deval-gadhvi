@@ -921,23 +921,24 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateProvider = async (id: string, providerData: Partial<Provider>) => {
+    if (!id) {
+      console.error('[updateProvider] Called with empty id — aborting to prevent cross-provider contamination.');
+      return;
+    }
     const updated = { ...providerData, updatedAt: serverTimestamp() };
+    // Update ONLY the provider whose id matches — never map by index
     setProviders(prev => {
-      const newProviders = prev.map(p => (p.id === id || p.slug === id ? { ...p, ...updated } : p));
+      const newProviders = prev.map(p => (p.id === id ? { ...p, ...updated } : p));
       setLocalItem('newark_cms_providers', newProviders);
       return newProviders;
     });
     try {
       const db = getDb();
+      // Write ONLY to this provider's Firestore document — the providers collection is the
+      // single source of truth. We no longer write to doctor_profile/main which was a
+      // deprecated secondary collection that caused cross-provider image contamination.
+      console.log(`[updateProvider] Saving provider id=${id} imageUrl=${providerData.imageUrl || '(unchanged)'}`);
       await setDoc(doc(db, 'providers', id), updated, { merge: true });
-      if (id.includes('prahlad') || providerData.name?.toLowerCase().includes('prahlad')) {
-        if (providerData.imageUrl || providerData.photoUrl) {
-          await setDoc(doc(db, 'doctor_profile', 'main'), {
-            photoUrl: providerData.imageUrl || providerData.photoUrl,
-            updatedAt: serverTimestamp()
-          }, { merge: true });
-        }
-      }
     } catch (e) {
       console.warn('Provider update error/fallback:', e);
     }

@@ -1,12 +1,10 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { Mail, MapPin } from 'lucide-react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { getDb } from '../lib/firebase';
 import SeoHead from '../components/SeoHead';
 import { useCmsData } from '../context/CmsContext';
 import { DEFAULT_PROVIDERS } from '../data/defaultCmsData';
-import { getProviderImage, normalizeProviderKey } from '../utils/providerImages';
+import { getProviderImage, getProviderImageSrc, normalizeProviderKey } from '../utils/providerImages';
 
 interface DoctorDetailData {
   name: string;
@@ -101,123 +99,52 @@ export default function ProviderDetailPage() {
     return clean;
   }, [slug]);
 
-  const isPrahlad = normalizedSlug === 'dr-prahlad-gadhavi' || normalizedSlug === 'dr-prahlad-gadhvi';
-
-  // Live state for doctor profile & photo to ensure uploaded images render immediately
-  const [liveDoctorProfile, setLiveDoctorProfile] = useState<any>(() => {
-    try {
-      const cached = localStorage.getItem('newark_doctor_profile');
-      return cached ? JSON.parse(cached) : null;
-    } catch (e) {
-      return null;
-    }
-  });
-
-  const [liveDoctorPhoto, setLiveDoctorPhoto] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem('newark_doctor_photo');
-    } catch (e) {
-      return null;
-    }
-  });
-
-  // Listen to storage events & Firestore live doc for instant photo sync
-  useEffect(() => {
-    const handleStorage = () => {
-      try {
-        const cached = localStorage.getItem('newark_doctor_profile');
-        if (cached) setLiveDoctorProfile(JSON.parse(cached));
-      } catch (e) {}
-    };
-
-    window.addEventListener('storage', handleStorage);
-
-    let unsub: (() => void) | undefined;
-    if (isPrahlad) {
-      try {
-        const db = getDb();
-        unsub = onSnapshot(doc(db, 'doctor_profile', 'main'), (snap) => {
-          if (snap.exists()) {
-            const data = snap.data();
-            setLiveDoctorProfile(data);
-            if (data?.photoUrl) {
-              setLiveDoctorPhoto(data.photoUrl);
-            }
-          }
-        }, (err) => console.warn('Live doctor profile snap:', err));
-      } catch (e) {}
-    }
-
-    return () => {
-      window.removeEventListener('storage', handleStorage);
-      if (unsub) unsub();
-    };
-  }, [isPrahlad]);
-
-  // Find dynamic provider from CMS or fallback with flexible ID matching
+  // Find dynamic provider from CMS — match by id, slug, or name (no isPrahlad special-casing).
+  // The providers Firestore collection is the SINGLE SOURCE OF TRUTH for all provider images.
   const dynamicProvider = useMemo(() => {
-    return providers.find(p => 
-      p.slug === slug || 
-      p.id === slug || 
-      p.slug === normalizedSlug || 
-      p.id === normalizedSlug ||
-      (isPrahlad && (
-        p.id === 'dr-prahlad-gadhvi' || 
-        p.id === 'dr-prahlad-gadhavi' || 
-        p.slug === 'dr-prahlad-gadhvi' || 
-        p.slug === 'dr-prahlad-gadhavi' || 
-        p.name?.toLowerCase().includes('prahlad')
-      ))
-    ) || null;
-  }, [providers, slug, normalizedSlug, isPrahlad]);
+    const canonicalKey = normalizeProviderKey(normalizedSlug);
+    return providers.find(p => {
+      if (p.slug === slug || p.id === slug) return true;
+      if (p.slug === normalizedSlug || p.id === normalizedSlug) return true;
+      const pKey = normalizeProviderKey(p.id || p.slug || p.name || '');
+      return pKey === canonicalKey;
+    }) || null;
+  }, [providers, slug, normalizedSlug]);
 
-  // Derive default doctor data from DEFAULT_PROVIDERS (canonical single source of truth)
+  // Derive default doctor data from DEFAULT_PROVIDERS (canonical fallback)
   const defaultDoctor = useMemo(
     () => getDefaultDoctorData(normalizedSlug) || FALLBACK_DOCTOR_DATA,
     [normalizedSlug]
   );
 
-  // Final doctor data merged with CMS and live photo
+  // Final doctor data — image always comes from the providers collection (via dynamicProvider)
+  // or from DEFAULT_PROVIDERS. Never from localStorage or a deprecated doctor_profile collection.
   const doctor: DoctorDetailData = useMemo(() => {
-    // For Dr. Prahlad: also check live Firestore/localStorage photo upload
-    const livePhotoForPrahlad = isPrahlad && (liveDoctorPhoto || liveDoctorProfile?.photoUrl);
-
-    // Effective photo: live uploaded photo (Prahlad only) → CMS provider image → default image
-    const effectivePhoto =
-      livePhotoForPrahlad ||
-      getProviderImage(dynamicProvider || defaultDoctor);
+    // getProviderImageSrc applies cache-busting via updatedAt timestamp
+    const effectivePhoto = dynamicProvider
+      ? getProviderImageSrc(dynamicProvider)
+      : getProviderImage(defaultDoctor);
 
     if (dynamicProvider) {
       return {
-        name: (isPrahlad && liveDoctorProfile?.name) || dynamicProvider.name || defaultDoctor.name,
-        role: (isPrahlad && liveDoctorProfile?.designation) || dynamicProvider.title || dynamicProvider.role || defaultDoctor.role,
+        name: dynamicProvider.name || defaultDoctor.name,
+        role: dynamicProvider.title || (dynamicProvider as any).role || defaultDoctor.role,
         image: effectivePhoto,
         experience: dynamicProvider.experienceYears ? `${dynamicProvider.experienceYears} years` : defaultDoctor.experience,
-        qualifications: (isPrahlad && liveDoctorProfile?.qualification) || dynamicProvider.credentials || defaultDoctor.qualifications,
-        location: (isPrahlad && liveDoctorProfile?.clinicAddress) || defaultDoctor.location,
-        phone: (isPrahlad && liveDoctorProfile?.phone) || dynamicProvider.phone || defaultDoctor.phone,
-        email: (isPrahlad && liveDoctorProfile?.email) || dynamicProvider.email || defaultDoctor.email,
-        about: (isPrahlad && liveDoctorProfile?.biography) || dynamicProvider.fullBio || dynamicProvider.bio || defaultDoctor.about,
+        qualifications: dynamicProvider.credentials || defaultDoctor.qualifications,
+        location: defaultDoctor.location,
+        phone: dynamicProvider.phone || defaultDoctor.phone,
+        email: dynamicProvider.email || defaultDoctor.email,
+        about: dynamicProvider.fullBio || dynamicProvider.bio || defaultDoctor.about,
         experienceDetail: dynamicProvider.fullBio || dynamicProvider.bio || defaultDoctor.experienceDetail,
-        specialities: dynamicProvider.specialties && dynamicProvider.specialties.length > 0 
-          ? dynamicProvider.specialties 
-          : ((isPrahlad && liveDoctorProfile?.expertise) || defaultDoctor.specialities)
+        specialities: dynamicProvider.specialties && dynamicProvider.specialties.length > 0
+          ? dynamicProvider.specialties
+          : defaultDoctor.specialities
       };
     }
 
-    return {
-      ...defaultDoctor,
-      name: (isPrahlad && liveDoctorProfile?.name) || defaultDoctor.name,
-      role: (isPrahlad && liveDoctorProfile?.designation) || defaultDoctor.role,
-      image: effectivePhoto,
-      qualifications: (isPrahlad && liveDoctorProfile?.qualification) || defaultDoctor.qualifications,
-      about: (isPrahlad && liveDoctorProfile?.biography) || defaultDoctor.about,
-      location: (isPrahlad && liveDoctorProfile?.clinicAddress) || defaultDoctor.location,
-      phone: (isPrahlad && liveDoctorProfile?.phone) || defaultDoctor.phone,
-      email: (isPrahlad && liveDoctorProfile?.email) || defaultDoctor.email,
-      specialities: (isPrahlad && liveDoctorProfile?.expertise) || defaultDoctor.specialities
-    };
-  }, [dynamicProvider, defaultDoctor, isPrahlad, liveDoctorPhoto, liveDoctorProfile]);
+    return { ...defaultDoctor, image: effectivePhoto };
+  }, [dynamicProvider, defaultDoctor]);
 
   if (!doctor) {
     return <Navigate to="/providers" replace />;

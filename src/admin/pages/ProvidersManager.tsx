@@ -51,10 +51,18 @@ export default function ProvidersManager() {
       let finalUrl = '';
 
       // 1. Try uploading to Cloudflare R2
+      // CRITICAL: pid must always be THIS provider's id — never fall back to another doctor's id.
+      // Build a safe pid from the provider's own id or name, never from a different provider.
       try {
         const formData = new FormData();
         formData.append('file', file);
-        const pid = editingProvider.id || 'dr-deval-gadhvi';
+        const providerName = (editingProvider.name || '').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^dr-/, '').slice(0, 40);
+        const pid = editingProvider.id
+          ? editingProvider.id
+          : providerName
+          ? `dr-${providerName}`
+          : `provider-${Date.now()}`;
+        console.log(`[ProviderUpload] Uploading image for provider: id=${editingProvider.id} name=${editingProvider.name} → R2 key prefix: providers/${pid}/`);
         const res = await fetch(`/.netlify/functions/upload-provider-image?providerId=${encodeURIComponent(pid)}`, {
           method: 'POST',
           body: formData,
@@ -238,22 +246,16 @@ export default function ProvidersManager() {
       };
 
       await setDoc(doc(db, 'providers', canonicalId), payload, { merge: true });
+      console.log(`[ProvidersManager] Saved provider id=${canonicalId} imageUrl=${payload.imageUrl}`);
 
-      // Clean up orphaned duplicates and keep doctor_profile synchronized
+      // Clean up orphaned duplicates only
       if (isPrahlad) {
         try {
           await deleteDoc(doc(db, 'providers', 'dr-prahlad-gadhavi'));
         } catch (e) {}
-        try {
-          await setDoc(doc(db, 'doctor_profile', 'main'), {
-            photoUrl: payload.imageUrl,
-            name: payload.name,
-            designation: payload.title,
-            qualification: payload.credentials,
-            speciality: payload.specialty,
-            updatedAt: serverTimestamp()
-          }, { merge: true });
-        } catch (e) {}
+        // NOTE: We no longer write to doctor_profile/main — that deprecated collection
+        // was causing cross-provider image contamination. The providers collection is
+        // the single source of truth for all provider data including images.
       }
       
       // Update local state optimistic
