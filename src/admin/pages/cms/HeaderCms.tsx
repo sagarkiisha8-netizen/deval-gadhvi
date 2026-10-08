@@ -1,20 +1,91 @@
 import React, { useState } from 'react';
 import { 
   Menu, Save, Loader2, CheckCircle2, 
-  Plus, Trash2, ExternalLink, Globe 
+  Plus, Trash2, ExternalLink, Globe,
+  Upload, RotateCcw, Image as ImageIcon, AlertCircle 
 } from 'lucide-react';
 import { useCmsData } from '../../../context/CmsContext';
 import { HeaderContent } from '../../../types';
 
 export default function HeaderCms() {
-  const { headerContent, updateHeaderContent } = useCmsData();
+  const { headerContent, updateHeaderContent, siteSettings, updateSiteSettings } = useCmsData();
   const [formData, setFormData] = useState<HeaderContent>(headerContent);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Logo upload states
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
+  const [logoUploadSuccess, setLogoUploadSuccess] = useState<string | null>(null);
+
   React.useEffect(() => {
     setFormData(headerContent);
   }, [headerContent]);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setLogoUploadError('Please select a PNG, JPG, or WebP logo file.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setLogoUploadError('Logo file size exceeds 5MB limit.');
+      return;
+    }
+
+    setLogoUploading(true);
+    setLogoUploadError(null);
+    setLogoUploadSuccess(null);
+
+    try {
+      let finalUrl = '';
+      try {
+        const uploadData = new FormData();
+        uploadData.append('file', file);
+        const res = await fetch('/.netlify/functions/upload-provider-image?providerId=branding', {
+          method: 'POST',
+          body: uploadData
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.imageUrl) {
+            finalUrl = json.imageUrl;
+          }
+        }
+      } catch (err) {
+        console.warn('R2 endpoint fallback in HeaderCms:', err);
+      }
+
+      if (!finalUrl) {
+        finalUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      setFormData(prev => ({ ...prev, logoUrl: finalUrl }));
+      setLogoUploadSuccess('Logo uploaded! Click "Save Header Navigation" to apply.');
+      setTimeout(() => setLogoUploadSuccess(null), 4000);
+    } catch (err: any) {
+      setLogoUploadError(err.message || 'Failed to upload logo.');
+    } finally {
+      setLogoUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleResetLogo = () => {
+    const defaultLogo = '/newark-medical-associates-logo.png';
+    setFormData(prev => ({ ...prev, logoUrl: defaultLogo }));
+    setLogoUploadSuccess('Reset to default official logo. Click "Save Header Navigation" to apply.');
+    setTimeout(() => setLogoUploadSuccess(null), 4000);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +93,9 @@ export default function HeaderCms() {
     setSaveSuccess(false);
     try {
       await updateHeaderContent(formData);
+      if (formData.logoUrl && updateSiteSettings) {
+        await updateSiteSettings({ logoUrl: formData.logoUrl });
+      }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
@@ -149,6 +223,80 @@ export default function HeaderCms() {
                 onChange={(e) => setFormData({ ...formData, logoSubtext: e.target.value })}
                 className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm"
               />
+            </div>
+          </div>
+
+          {/* Logo Image Preview & Upload to R2 */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-200 pb-2.5">
+              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <ImageIcon size={14} className="text-primary-600" />
+                <span>Website Navbar Logo File</span>
+              </span>
+              <span className="text-[11px] text-slate-500">
+                Single source of truth for desktop & mobile
+              </span>
+            </div>
+
+            {logoUploadSuccess && (
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                <span>{logoUploadSuccess}</span>
+              </div>
+            )}
+
+            {logoUploadError && (
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+                <AlertCircle size={14} className="text-rose-600 shrink-0" />
+                <span>{logoUploadError}</span>
+              </div>
+            )}
+
+            {/* Preview on actual Warm Ivory navbar background */}
+            <div className="p-3 rounded-lg bg-[#F4EFE6] border border-[#D9D0C5] flex flex-col items-center justify-center min-h-[80px]">
+              <span className="text-[10px] font-bold text-[#0B1F2A]/60 uppercase tracking-wider mb-2">
+                Navbar Preview (#F4EFE6)
+              </span>
+              <img
+                src={formData.logoUrl || '/newark-medical-associates-logo.png'}
+                alt="Header Logo Preview"
+                className="w-auto h-auto object-contain max-h-[48px] max-w-[240px]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-700">
+                Logo URL / Path
+              </label>
+              <input
+                type="text"
+                value={formData.logoUrl || '/newark-medical-associates-logo.png'}
+                onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              <label className="inline-flex items-center gap-2 bg-[#0B1F2A] hover:bg-[#153444] text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer">
+                {logoUploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                <span>{logoUploading ? 'Uploading to R2...' : 'Upload Logo to R2'}</span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleLogoUpload}
+                  disabled={logoUploading}
+                  className="hidden"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={handleResetLogo}
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <RotateCcw size={12} />
+                <span>Reset to Default</span>
+              </button>
             </div>
           </div>
 

@@ -4,9 +4,10 @@ import { useCmsData } from '../context/CmsContext';
 export interface BrandLogoProps {
   layout?: 'horizontal' | 'compact' | 'icon-only';
   colorScheme?: 'colored' | 'black' | 'white';
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'navbar';
   showTagline?: boolean;
   className?: string;
+  imgClassName?: string;
 }
 
 export interface BrandIconProps {
@@ -76,81 +77,56 @@ export default function BrandLogo({
   colorScheme = 'colored',
   size = 'md',
   showTagline = true,
-  className = ''
+  className = '',
+  imgClassName = ''
 }: BrandLogoProps) {
   const isWhite = colorScheme === 'white';
 
   let customLogo = '';
   try {
-    const { getMediaUrl } = useCmsData();
-    customLogo = getMediaUrl('global', 'branding', 'logo') || '';
+    const { getMediaUrl, siteSettings, headerContent } = useCmsData();
+    customLogo =
+      siteSettings?.logoUrl ||
+      headerContent?.logoUrl ||
+      getMediaUrl('branding', 'header', 'logo') ||
+      getMediaUrl('global', 'branding', 'logo') ||
+      '/newark-medical-associates-logo.png';
   } catch {
-    // Graceful fallback if rendered outside CmsProvider
+    customLogo = '/newark-medical-associates-logo.png';
   }
 
-  const titleColor = isWhite ? 'text-[#FCFBF8]' : 'text-[#0B1F2A]';
-  const taglineColor = isWhite ? 'text-[#D9D0C5]' : 'text-[#B39A68]';
+  // When white colorScheme is requested (e.g. inside dark navy footer),
+  // preserve the white monogram & typography so dark backgrounds remain perfectly readable.
+  if (isWhite) {
+    const titleColor = 'text-[#FCFBF8]';
+    const taglineColor = 'text-[#D9D0C5]';
 
-  const sizeMap = {
-    sm: {
-      icon: 32,
-      title: 'text-[17px] tracking-[-0.01em]',
-      tagline: 'text-[10px] tracking-[0.14em]',
-      gap: 'gap-2.5'
-    },
-    md: {
-      icon: 42,
-      title: 'text-[21px] sm:text-[23px] tracking-[-0.015em]',
-      tagline: 'text-[11px] tracking-[0.16em]',
-      gap: 'gap-3.5'
-    },
-    lg: {
-      icon: 50,
-      title: 'text-[26px] sm:text-[28px] tracking-[-0.02em]',
-      tagline: 'text-[12.5px] tracking-[0.18em]',
-      gap: 'gap-4'
-    },
-    xl: {
-      icon: 64,
-      title: 'text-[32px] sm:text-[36px] tracking-[-0.02em]',
-      tagline: 'text-[14px] tracking-[0.2em]',
-      gap: 'gap-5'
+    const sizeMap = {
+      sm: { icon: 32, title: 'text-[17px] tracking-[-0.01em]', tagline: 'text-[10px] tracking-[0.14em]', gap: 'gap-2.5' },
+      md: { icon: 42, title: 'text-[21px] sm:text-[23px] tracking-[-0.015em]', tagline: 'text-[11px] tracking-[0.16em]', gap: 'gap-3.5' },
+      lg: { icon: 50, title: 'text-[26px] sm:text-[28px] tracking-[-0.02em]', tagline: 'text-[12.5px] tracking-[0.18em]', gap: 'gap-4' },
+      xl: { icon: 64, title: 'text-[32px] sm:text-[36px] tracking-[-0.02em]', tagline: 'text-[14px] tracking-[0.2em]', gap: 'gap-5' },
+      navbar: { icon: 42, title: 'text-[21px] sm:text-[23px] tracking-[-0.015em]', tagline: 'text-[11px] tracking-[0.16em]', gap: 'gap-3.5' }
+    };
+    const currentSize = sizeMap[size === 'navbar' ? 'md' : size];
+
+    if (layout === 'icon-only') {
+      return (
+        <div className={`inline-flex items-center justify-center ${className}`}>
+          <BrandIcon size={currentSize.icon} colorScheme="white" />
+        </div>
+      );
     }
-  };
 
-  const currentSize = sizeMap[size];
-
-  if (customLogo) {
     return (
-      <div className={`inline-flex items-center ${className}`}>
-        <img
-          src={customLogo}
-          alt="Newark Medical Associates"
-          className="object-contain max-h-12 w-auto"
-          referrerPolicy="no-referrer"
-        />
-      </div>
-    );
-  }
-
-  if (layout === 'icon-only') {
-    return (
-      <div className={`inline-flex items-center justify-center ${className}`}>
-        <BrandIcon size={currentSize.icon} colorScheme={colorScheme} />
-      </div>
-    );
-  }
-
-  if (layout === 'compact') {
-    return (
-      <div className={`flex flex-col items-center text-center ${currentSize.gap} ${className}`}>
-        <BrandIcon size={currentSize.icon} colorScheme={colorScheme} />
-        <div className="flex flex-col items-center">
-          <span className={`font-serif ${currentSize.title} ${titleColor} leading-tight`}>
+      <div className={`inline-flex items-center ${currentSize.gap} ${className}`}>
+        <BrandIcon size={currentSize.icon} colorScheme="white" />
+        <div className="flex flex-col justify-center">
+          <span className={`font-serif ${currentSize.title} ${titleColor} leading-none`}>
             Newark Medical Associates
           </span>
           {showTagline && (
-            <span className={`font-sans uppercase font-medium ${currentSize.tagline} ${taglineColor} mt-1`}>
+            <span className={`font-sans uppercase font-semibold ${currentSize.tagline} ${taglineColor} mt-1`}>
               Primary & Preventive Care
             </span>
           )}
@@ -159,19 +135,37 @@ export default function BrandLogo({
     );
   }
 
-  return (
-    <div className={`inline-flex items-center ${currentSize.gap} ${className}`}>
-      <BrandIcon size={currentSize.icon} colorScheme={colorScheme} />
-      <div className="flex flex-col justify-center">
-        <span className={`font-serif ${currentSize.title} ${titleColor} leading-none`}>
-          Newark Medical Associates
-        </span>
-        {showTagline && (
-          <span className={`font-sans uppercase font-semibold ${currentSize.tagline} ${taglineColor} mt-1`}>
-            Primary & Preventive Care
-          </span>
-        )}
+  // When used in navbar or general colored layout, use the approved official brand logo image
+  if (layout !== 'icon-only') {
+    const navbarImgClasses =
+      'w-auto h-auto object-contain max-h-[38px] xs:max-h-[42px] sm:max-h-[46px] md:max-h-[50px] lg:max-h-[54px] max-w-[155px] xs:max-w-[185px] sm:max-w-[215px] md:max-w-[245px] lg:max-w-[270px]';
+
+    const defaultImgClasses =
+      size === 'navbar'
+        ? navbarImgClasses
+        : size === 'sm'
+        ? 'w-auto h-auto object-contain max-h-[36px] max-w-[160px]'
+        : size === 'lg'
+        ? 'w-auto h-auto object-contain max-h-[56px] max-w-[280px]'
+        : size === 'xl'
+        ? 'w-auto h-auto object-contain max-h-[70px] max-w-[340px]'
+        : 'w-auto h-auto object-contain max-h-[46px] max-w-[220px]';
+
+    return (
+      <div className={`inline-flex items-center min-w-0 ${className}`}>
+        <img
+          src={customLogo}
+          alt="Newark Medical Associates - Dr. Deval Gadhvi"
+          className={imgClassName || defaultImgClasses}
+          referrerPolicy="no-referrer"
+        />
       </div>
+    );
+  }
+
+  return (
+    <div className={`inline-flex items-center justify-center ${className}`}>
+      <BrandIcon size={42} colorScheme={colorScheme} />
     </div>
   );
 }

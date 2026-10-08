@@ -478,5 +478,43 @@ export const DEFAULT_SITE_MEDIA: Record<string, SiteMediaItem> = {
     defaultUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&q=80&w=1200',
     defaultAlt: 'Certified phlebotomy and rapid blood draw laboratory',
     pageRoute: '/gallery'
+  },
+
+  // ==========================================
+  // 8. BRANDING & NAVBAR LOGOS
+  // ==========================================
+  'brand-primary-logo': {
+    id: 'brand-primary-logo',
+    pageKey: 'branding',
+    sectionKey: 'header',
+    imageKey: 'logo',
+    label: 'Primary Website Logo (Navbar & Branding)',
+    description: 'Official Newark Medical Associates logo with medical brand symbol and Dr. Deval Gadhvi attribution. Single source of truth for desktop and mobile navbar.',
+    url: '/newark-medical-associates-logo.png',
+    defaultUrl: '/newark-medical-associates-logo.png',
+    altText: 'Newark Medical Associates - Dr. Deval Gadhvi',
+    defaultAlt: 'Newark Medical Associates - Dr. Deval Gadhvi',
+    recommendedDimensions: '1024 × 341 px',
+    aspectRatio: '3:1',
+    objectFit: 'contain',
+    position: 'center',
+    pageRoute: '/'
+  },
+  'global-branding-logo': {
+    id: 'global-branding-logo',
+    pageKey: 'global',
+    sectionKey: 'branding',
+    imageKey: 'logo',
+    label: 'Global Practice Website Logo',
+    description: 'Official Newark Medical Associates logo featuring the medical symbol, clinic title, and Dr. Deval Gadhvi attribution.',
+    url: '/newark-medical-associates-logo.png',
+    defaultUrl: '/newark-medical-associates-logo.png',
+    altText: 'Newark Medical Associates - Dr. Deval Gadhvi',
+    defaultAlt: 'Newark Medical Associates - Dr. Deval Gadhvi',
+    recommendedDimensions: '1024 × 341 px',
+    aspectRatio: '3:1',
+    objectFit: 'contain',
+    position: 'center',
+    pageRoute: '/'
   }
 };

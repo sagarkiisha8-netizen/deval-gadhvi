@@ -508,6 +508,7 @@ export const DEFAULT_HEADER: HeaderContent = {
   topBarAddress: '337 Bloomfield Ave, Newark, NJ',
   logoText: 'Newark Medical',
   logoSubtext: 'Associates',
+  logoUrl: '/newark-medical-associates-logo.png',
   ctaButtonText: 'Book Appointment',
   ctaButtonLink: '/contact',
   navLinks: [
@@ -556,6 +557,7 @@ export const DEFAULT_FOOTER: FooterContent = {
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   practiceName: 'Newark Medical Associates',
   tagline: 'Compassionate Primary & Preventive Care in Newark, NJ',
+  logoUrl: '/newark-medical-associates-logo.png',
   siteUrl: 'https://newarkmed.com',
   npiNumber: '1942385912',
   licenseNumber: 'NJ-MED-20941',

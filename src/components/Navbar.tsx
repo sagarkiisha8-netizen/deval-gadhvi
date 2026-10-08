@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Menu, X, ArrowRight, Phone } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import { NEWARK_PRACTICE_INFO } from '../data/localSeoData';
 import BrandLogo from './BrandLogo';
 
@@ -24,16 +23,15 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Prevent background scrolling when mobile menu is open
+  // Close menu on Escape key press
   useEffect(() => {
-    if (mobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
     };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [mobileMenuOpen]);
 
   const navLinks = [
@@ -69,15 +67,19 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* MAIN HEADER: Warm Ivory (#F4EFE6), Responsive Height */}
+      {/* MAIN HEADER: Warm Ivory (#F4EFE6), Responsive Height & Alignment */}
       <div
-        className={`bg-[#F4EFE6] border-b border-[#D9D0C5]/70 h-[76px] sm:h-[80px] md:h-[82px] px-4 sm:px-6 lg:px-7 flex items-center justify-between transition-all duration-300 ${
-          scrolled ? 'shadow-md backdrop-blur-md bg-[#F4EFE6]/98' : ''
+        className={`bg-[#F4EFE6] border-b border-[#D9D0C5]/70 h-[74px] sm:h-[80px] md:h-[82px] px-3 sm:px-6 lg:px-7 flex items-center justify-between gap-2 sm:gap-4 transition-all duration-300 ${
+          scrolled ? 'shadow-md' : ''
         }`}
       >
-        {/* Left: Newark Medical Associates Logo */}
-        <Link to="/" className="shrink-0 flex items-center group py-2" aria-label="Newark Medical Associates">
-          <BrandLogo layout="horizontal" colorScheme="colored" size="md" />
+        {/* Left: Newark Medical Associates Logo Wrapper */}
+        <Link
+          to="/"
+          className="flex items-center min-w-0 flex-shrink-1 py-1 group"
+          aria-label="Newark Medical Associates - Dr. Deval Gadhvi"
+        >
+          <BrandLogo layout="horizontal" colorScheme="colored" size="navbar" />
         </Link>
 
         {/* Center: Main Navigation with Editorial Typography */}
@@ -100,8 +102,8 @@ export default function Navbar() {
           ))}
         </nav>
 
-        {/* Right: Large Editorial BOOK APPOINTMENT Button */}
-        <div className="hidden sm:flex items-center gap-3 md:gap-4">
+        {/* Right: Editorial BOOK APPOINTMENT Button (Tablet / Desktop) */}
+        <div className="hidden sm:flex items-center gap-3 md:gap-4 shrink-0">
           <Link
             to="/appointments"
             className="inline-flex items-center justify-center min-h-[44px] px-5 sm:px-6 py-3 bg-[#0B1F2A] hover:bg-[#153444] text-[#FCFBF8] text-[13.5px] sm:text-[14px] font-semibold tracking-wider uppercase rounded-none border border-[#0B1F2A] hover:border-[#B39A68] shadow-xs transition-all duration-200 active:scale-[0.99]"
@@ -111,87 +113,74 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Hamburger & Quick CTA Toggle */}
-        <div className="flex items-center gap-2 sm:gap-3 lg:hidden">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 lg:hidden">
           <Link
             to="/appointments"
-            className="sm:hidden inline-flex items-center justify-center min-h-[40px] px-3 py-1.5 bg-[#0B1F2A] text-[#FCFBF8] text-[11.5px] font-semibold uppercase tracking-wider"
+            className="sm:hidden inline-flex items-center justify-center min-h-[38px] px-3 py-1.5 bg-[#0B1F2A] hover:bg-[#153444] text-[#FCFBF8] text-[11px] font-semibold uppercase tracking-wider shrink-0 transition-colors"
           >
             Book
           </Link>
           <button
+            type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 text-[#0B1F2A] hover:text-[#315B52] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B39A68]"
-            aria-label="Toggle navigation menu"
+            className="w-11 h-11 flex items-center justify-center p-2 text-[#0B1F2A] hover:text-[#315B52] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B39A68] rounded-md shrink-0 cursor-pointer"
+            aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             aria-expanded={mobileMenuOpen}
           >
-            <motion.div
-              animate={{ rotate: mobileMenuOpen ? 90 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              {mobileMenuOpen ? <X size={26} /> : <Menu size={26} />}
-            </motion.div>
+            {mobileMenuOpen ? <X size={26} className="shrink-0" /> : <Menu size={26} className="shrink-0" />}
           </button>
         </div>
       </div>
 
-      {/* Animated Mobile Drawer Menu */}
-      {/* top = utility-bar(30px) + header(76px mobile / 80px sm / 82px md) */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="lg:hidden fixed inset-x-0 top-[106px] sm:top-[110px] md:top-[112px] bottom-0 bg-[#F4EFE6] z-50 flex flex-col justify-between px-5 sm:px-8 pt-4 sm:pt-6 overflow-y-auto border-t border-[#D9D0C5] shadow-2xl"
-          >
-            <nav className="flex flex-col gap-0.5 pt-1">
-              {navLinks.map((link, idx) => (
-                <motion.div
-                  key={link.name}
-                  initial={{ opacity: 0, x: -16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.05 * idx, duration: 0.3 }}
-                >
-                  <NavLink
-                    to={link.href}
-                    end={link.href === '/'}
-                    className={({ isActive }) =>
-                      `min-h-[52px] text-[22px] sm:text-2xl font-serif py-3 border-b border-[#D9D0C5]/50 flex items-center justify-between transition-colors ${
-                        isActive ? 'text-[#0B1F2A] font-bold pl-1' : 'text-[#252A2B]/80 hover:text-[#0B1F2A]'
-                      }`
-                    }
-                  >
-                    <span>{link.name}</span>
-                    <ArrowRight size={18} className="text-[#B39A68] shrink-0" />
-                  </NavLink>
-                </motion.div>
-              ))}
-            </nav>
+      {/* Clean Mobile Dropdown Menu attached directly below navbar */}
+      <div
+        id="mobile-navigation-menu"
+        className={`lg:hidden absolute top-full left-0 right-0 w-full bg-[#F4EFE6] border-b border-[#D9D0C5] shadow-2xl transition-all duration-250 ease-out z-50 ${
+          mobileMenuOpen
+            ? 'opacity-100 visible pointer-events-auto translate-y-0'
+            : 'opacity-0 invisible pointer-events-none -translate-y-2'
+        }`}
+      >
+        <div className="px-5 sm:px-8 py-5 flex flex-col justify-between max-h-[calc(100dvh-115px)] overflow-y-auto">
+          <nav className="flex flex-col gap-0.5 pt-1">
+            {navLinks.map((link) => (
+              <NavLink
+                key={link.name}
+                to={link.href}
+                end={link.href === '/'}
+                onClick={() => setMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `min-h-[48px] text-[20px] sm:text-2xl font-serif py-2.5 border-b border-[#D9D0C5]/50 flex items-center justify-between transition-colors ${
+                    isActive ? 'text-[#0B1F2A] font-bold pl-1' : 'text-[#252A2B]/80 hover:text-[#0B1F2A]'
+                  }`
+                }
+              >
+                <span>{link.name}</span>
+                <ArrowRight size={18} className="text-[#B39A68] shrink-0" />
+              </NavLink>
+            ))}
+          </nav>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25, duration: 0.3 }}
-              className="mt-6 pt-5 border-t border-[#D9D0C5] flex flex-col gap-3"
-              style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}
+          <div
+            className="mt-6 pt-5 border-t border-[#D9D0C5] flex flex-col gap-3"
+            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+          >
+            <Link
+              to="/appointments"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full min-h-[48px] flex items-center justify-center py-3 text-center bg-[#0B1F2A] hover:bg-[#153444] text-white font-semibold uppercase tracking-wider text-[13.5px] transition-colors"
             >
-              <Link
-                to="/appointments"
-                className="w-full min-h-[52px] flex items-center justify-center py-3.5 text-center bg-[#0B1F2A] hover:bg-[#153444] text-white font-semibold uppercase tracking-wider text-[14px] transition-colors"
-              >
-                Book Appointment
-              </Link>
-              <a
-                href={`tel:${NEWARK_PRACTICE_INFO.rawPhone}`}
-                className="w-full min-h-[52px] flex items-center justify-center py-3 text-center border border-[#0B1F2A] text-[#0B1F2A] hover:bg-[#0B1F2A]/5 font-semibold uppercase tracking-wider text-[13px] transition-colors"
-              >
-                Call {NEWARK_PRACTICE_INFO.phone}
-              </a>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              Book Appointment
+            </Link>
+            <a
+              href={`tel:${NEWARK_PRACTICE_INFO.rawPhone}`}
+              className="w-full min-h-[48px] flex items-center justify-center py-2.5 text-center border border-[#0B1F2A] text-[#0B1F2A] hover:bg-[#0B1F2A]/5 font-semibold uppercase tracking-wider text-[13px] transition-colors"
+            >
+              Call {NEWARK_PRACTICE_INFO.phone}
+            </a>
+          </div>
+        </div>
+      </div>
     </header>
   );
 }

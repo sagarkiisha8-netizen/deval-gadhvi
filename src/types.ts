@@ -567,6 +567,7 @@ export interface PageSeoItem {
 export interface SiteSettings {
   practiceName: string;
   tagline: string;
+  logoUrl?: string;
   siteUrl?: string; // production domain e.g. https://newarkmed.com
   npiNumber?: string;
   licenseNumber?: string;
