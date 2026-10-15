@@ -2,7 +2,7 @@ import React from 'react';
 import { Phone, Mail, ShieldCheck } from 'lucide-react';
 import { DEFAULT_PROVIDERS } from '../data/defaultCmsData';
 import { useCmsData } from '../context/CmsContext';
-import { getProviderImageSrc } from '../utils/providerImages';
+import { getProviderImageSrc, normalizeProviderKey } from '../utils/providerImages';
 
 export default function AppointmentBookingForm() {
   const { providers } = useCmsData();
@@ -30,17 +30,33 @@ export default function AppointmentBookingForm() {
           const phoneHref = `tel:${phone.replace(/[^0-9]/g, '')}`;
           const emailHref = `mailto:${email}`;
           const img = getProviderImageSrc(doc);
+          const isDisha = doc.id === 'dr-disha-patel' || normalizeProviderKey(doc.id) === 'dr-disha-patel' || !img;
 
           return (
             <div key={doc.id} className="bg-[#FCFBF8] border border-[#D9D0C5]/80 p-6 flex flex-col justify-between rounded-sm shadow-xs hover:shadow-md transition-shadow">
               <div className="space-y-4">
-                <div className="aspect-[4/4.5] overflow-hidden bg-slate-100 rounded-xs">
-                  <img
-                    src={img}
-                    alt={doc.name}
-                    className="w-full h-full object-cover object-top"
-                    referrerPolicy="no-referrer"
-                  />
+                <div className="aspect-[4/4.5] overflow-hidden bg-[#F4EFE6] border border-[#D9D0C5] rounded-xs">
+                  {isDisha ? (
+                    <div className="w-full h-full p-6 flex flex-col justify-between bg-[#F4EFE6]">
+                      <div>
+                        <span className="inline-block px-2.5 py-0.5 bg-[#0B1F2A] text-[#F4EFE6] text-[10px] font-semibold uppercase tracking-widest mb-2">
+                          Clinical Specialist
+                        </span>
+                        <h4 className="font-serif text-lg text-[#0B1F2A] mb-1">{doc.name}</h4>
+                        <p className="text-xs text-[#B39A68] font-bold uppercase tracking-wider">{doc.credentials || 'PT, DPT, GCS'}</p>
+                      </div>
+                      <p className="text-xs text-[#5A6264] italic">
+                        "Evidence-based physical therapy & functional recovery without portrait display."
+                      </p>
+                    </div>
+                  ) : (
+                    <img
+                      src={img}
+                      alt={doc.name}
+                      className="w-full h-full object-cover object-top"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
                 </div>
                 <div>
                   <h3 className="font-serif text-xl sm:text-2xl text-[#0B1F2A] mb-1">
