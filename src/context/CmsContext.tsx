@@ -113,17 +113,36 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
 
   const [providers, setProviders] = useState<Provider[]>(() => {
     const list = getLocalItem<Provider[]>('newark_cms_providers', DEFAULT_PROVIDERS);
-    return list.map(p => {
+    const map = new Map<string, Provider>();
+    DEFAULT_PROVIDERS.forEach(def => {
+      map.set(normalizeProviderKey(def.id || def.slug || def.name), { ...def });
+    });
+    list.forEach(p => {
+      const k = normalizeProviderKey(p.id || p.slug || p.name);
+      const existing = map.get(k) || {};
+      map.set(k, { ...existing, ...p });
+    });
+    return Array.from(map.values()).map(p => {
       const k = normalizeProviderKey(p.id || p.slug || p.name);
       if (k === 'dr-sankalp-pathak' || k === 'sankalp-pathak' || k === 'sankalp') {
         return {
           ...p,
           name: 'Dr. Sankalp Pathak',
           phone: '(973) 370-5259',
-          email: 'mycardiovascularclinic@mycardiovascularclinic.com'
+          email: 'mycardiovascularclinic@mycardiovascularclinic.com',
+          isActive: true
         };
       }
-      return p;
+      if (k === 'dr-disha-patel' || k === 'disha-patel' || k === 'disha') {
+        return {
+          ...p,
+          isActive: true
+        };
+      }
+      return {
+        ...p,
+        isActive: p.isActive !== false ? true : p.isActive
+      };
     });
   });
   const [services, setServices] = useState<ServiceItem[]>(DEFAULT_SERVICES);

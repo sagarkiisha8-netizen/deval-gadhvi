@@ -22,53 +22,67 @@ export default function AppointmentBookingForm() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {list.map((doc) => {
-          const isSankalp = doc.id.includes('sankalp') || doc.name.toLowerCase().includes('sankalp');
+          const key = normalizeProviderKey(doc.id || doc.slug || doc.name);
+          const isDisha = key === 'dr-disha-patel';
+          const isSankalp = key === 'dr-sankalp-pathak';
           const phone = isSankalp ? '(973) 370-5259' : (doc.phone || '(973) 412-9404');
           const email = isSankalp ? 'mycardiovascularclinic@mycardiovascularclinic.com' : (doc.email || 'medicalnewark@gmail.com');
           const phoneHref = `tel:${phone.replace(/[^0-9]/g, '')}`;
           const emailHref = `mailto:${email}`;
-          const img = getProviderImageSrc(doc);
-          const isDisha = doc.id === 'dr-disha-patel' || normalizeProviderKey(doc.id) === 'dr-disha-patel' || !img;
+          const img = isDisha ? '' : getProviderImageSrc(doc);
 
           return (
             <div key={doc.id} className="bg-[#FCFBF8] border border-[#D9D0C5]/80 p-6 flex flex-col justify-between rounded-sm shadow-xs hover:shadow-md transition-shadow">
               <div className="space-y-4">
-                <div className="aspect-[4/4.5] overflow-hidden bg-[#F4EFE6] border border-[#D9D0C5] rounded-xs">
-                  {isDisha ? (
-                    <div className="w-full h-full p-6 flex flex-col justify-between bg-[#F4EFE6]">
-                      <div>
-                        <span className="inline-block px-2.5 py-0.5 bg-[#0B1F2A] text-[#F4EFE6] text-[10px] font-semibold uppercase tracking-widest mb-2">
-                          Clinical Specialist
-                        </span>
-                        <h4 className="font-serif text-lg text-[#0B1F2A] mb-1">{doc.name}</h4>
-                        <p className="text-xs text-[#B39A68] font-bold uppercase tracking-wider">{doc.credentials || 'PT, DPT, GCS'}</p>
-                      </div>
-                      <p className="text-xs text-[#5A6264] italic">
-                        "Evidence-based physical therapy & functional recovery without portrait display."
+                {isDisha ? (
+                  <div className="aspect-[4/4.5] bg-[#F4EFE6] border border-[#D9D0C5] p-5 flex flex-col justify-between rounded-xs">
+                    <div>
+                      <span className="inline-block px-2.5 py-0.5 bg-[#0B1F2A] text-[#F4EFE6] text-[10px] font-semibold uppercase tracking-widest mb-3">
+                        Clinical Specialist
+                      </span>
+                      <h3 className="font-serif text-xl text-[#0B1F2A] mb-1">
+                        {doc.name}
+                      </h3>
+                      <p className="text-xs font-bold uppercase tracking-wider text-[#B39A68]">
+                        {doc.credentials || 'PT, DPT, GCS'}
                       </p>
                     </div>
-                  ) : (
+                    <p className="text-slate-600 text-xs italic leading-relaxed">
+                      "Dedicated to rehabilitation & functional recovery."
+                    </p>
+                  </div>
+                ) : (
+                  <div className="aspect-[4/4.5] overflow-hidden bg-slate-100 rounded-xs">
                     <img
                       src={img}
                       alt={doc.name}
                       className="w-full h-full object-cover object-top"
                       referrerPolicy="no-referrer"
                     />
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-serif text-xl sm:text-2xl text-[#0B1F2A] mb-1">
-                    {doc.name}
-                  </h3>
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#B39A68] mb-2">
-                    {doc.credentials || 'MD'} • {doc.title || doc.specialty || 'Physician'}
-                  </p>
-                  <p className="text-slate-600 text-xs sm:text-sm line-clamp-2">
-                    {doc.bio || doc.specialty}
-                  </p>
-                </div>
+                  </div>
+                )}
+                {!isDisha && (
+                  <div>
+                    <h3 className="font-serif text-xl sm:text-2xl text-[#0B1F2A] mb-1">
+                      {doc.name}
+                    </h3>
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#B39A68] mb-2">
+                      {doc.credentials || 'MD'} • {doc.title || doc.specialty || 'Physician'}
+                    </p>
+                    <p className="text-slate-600 text-xs sm:text-sm line-clamp-2">
+                      {doc.bio || doc.specialty}
+                    </p>
+                  </div>
+                )}
+                {isDisha && (
+                  <div>
+                    <p className="text-slate-600 text-xs sm:text-sm line-clamp-2 pt-1">
+                      {doc.bio || doc.specialty}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="mt-6 pt-5 border-t border-[#D9D0C5]/60 space-y-4">

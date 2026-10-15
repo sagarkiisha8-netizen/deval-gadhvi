@@ -194,10 +194,12 @@ export function getAuthorAvatar(author: any, providers?: any[], authors?: any[])
  * Resolves image source with cache busting token from updatedAt if available
  */
 export function getProviderImageSrc(provider: any, options?: { forHomepage?: boolean }): string {
-  const key = normalizeProviderKey(typeof provider === 'object' && provider !== null ? (provider.id || provider.slug || provider.name || '') : (typeof provider === 'string' ? provider : ''));
-  if (key === 'dr-disha-patel') return '';
-
+  if (provider) {
+    const k = normalizeProviderKey(typeof provider === 'string' ? provider : (provider.id || provider.slug || provider.name || ''));
+    if (k === 'dr-disha-patel') return '';
+  }
   const baseImage = getProviderImage(provider, options);
+  if (baseImage === '') return '';
   if (!baseImage) return GENERIC_DOCTOR_PLACEHOLDER;
   
   // Data URIs do not need cache-busting
