@@ -111,7 +111,21 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
   const [footerContent, setFooterContent] = useState<FooterContent>(() => getLocalItem('newark_cms_footer', DEFAULT_FOOTER));
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => getLocalItem('newark_cms_settings', DEFAULT_SITE_SETTINGS));
 
-  const [providers, setProviders] = useState<Provider[]>(() => getLocalItem('newark_cms_providers', DEFAULT_PROVIDERS));
+  const [providers, setProviders] = useState<Provider[]>(() => {
+    const list = getLocalItem<Provider[]>('newark_cms_providers', DEFAULT_PROVIDERS);
+    return list.map(p => {
+      const k = normalizeProviderKey(p.id || p.slug || p.name);
+      if (k === 'dr-sankalp-pathak' || k === 'sankalp-pathak' || k === 'sankalp') {
+        return {
+          ...p,
+          name: 'Dr. Sankalp Pathak',
+          phone: '(973) 370-5259',
+          email: 'mycardiovascularclinic@mycardiovascularclinic.com'
+        };
+      }
+      return p;
+    });
+  });
   const [services, setServices] = useState<ServiceItem[]>(DEFAULT_SERVICES);
   const [testimonials, setTestimonials] = useState<TestimonialItem[]>(DEFAULT_TESTIMONIALS);
   const [blogs, setBlogs] = useState<BlogPost[]>(DEFAULT_BLOGS);
@@ -277,11 +291,25 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
 
       // Providers Collection
       unsubscribeProviders = onSnapshot(collection(db, 'providers'), (snapshot) => {
+        const canonicalMap = new Map<string, Provider>();
+        // 1. Seed with DEFAULT_PROVIDERS for complete clinical metadata (including Dr. Disha Patel)
+        DEFAULT_PROVIDERS.forEach((def) => {
+          const defKey = normalizeProviderKey(def.id || def.slug || def.name);
+          canonicalMap.set(defKey, { ...def });
+        });
+
+        // 2. Merge Firestore snapshot docs
         if (!snapshot.empty) {
-          const canonicalMap = new Map<string, Provider>();
           snapshot.forEach((d) => {
             const raw = { id: d.id, ...(d.data() as any) } as Provider;
             const key = normalizeProviderKey(raw.id || raw.slug || raw.name || '');
+
+            // Data sanitization: Dr. Sankalp must strictly have his correct phone and email
+            if (key === 'dr-sankalp-pathak' || key === 'sankalp-pathak' || key === 'sankalp') {
+              raw.name = 'Dr. Sankalp Pathak';
+              raw.phone = '(973) 370-5259';
+              raw.email = 'mycardiovascularclinic@mycardiovascularclinic.com';
+            }
 
             // Data sanitization: Dr. Prahlad must never hold the swapped female Framer image or legacy static paths
             if ((key === 'dr-prahlad-gadhvi' || key === 'prahlad-gadhavi' || key === 'prahlad-gadhvi') && (
@@ -301,30 +329,14 @@ export function CmsProvider({ children }: { children: React.ReactNode }) {
               raw.photoUrl = fallbackUrl;
             }
 
-            if (!canonicalMap.has(key)) {
-              canonicalMap.set(key, raw);
-            } else {
-              const existing = canonicalMap.get(key)!;
-              const parseTs = (t: any): number => {
-                if (!t) return 0;
-                if (typeof t === 'number') return t;
-                if (typeof t?.toMillis === 'function') return t.toMillis();
-                if (t?.seconds) return t.seconds * 1000;
-                const n = new Date(t).getTime();
-                return isNaN(n) ? 0 : n;
-              };
-              const existingTime = parseTs(existing.updatedAt);
-              const currTime = parseTs(raw.updatedAt);
-              if (currTime > existingTime || (!existing.imageUrl && raw.imageUrl)) {
-                canonicalMap.set(key, { ...existing, ...raw });
-              }
-            }
+            const existing = canonicalMap.get(key) || {};
+            canonicalMap.set(key, { ...existing, ...raw });
           });
-          const list = Array.from(canonicalMap.values());
-          list.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
-          setProviders(list);
-          setLocalItem('newark_cms_providers', list);
         }
+        const list = Array.from(canonicalMap.values());
+        list.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+        setProviders(list);
+        setLocalItem('newark_cms_providers', list);
       }, () => { });
 
       // Live Doctor Profile Listener - DEPRECATED

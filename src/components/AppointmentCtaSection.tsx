@@ -40,10 +40,10 @@ export default function AppointmentCtaSection() {
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 sm:gap-4">
               <Link
-                to="/appointments"
+                to="/providers"
                 className="inline-flex items-center justify-center gap-3 px-8 sm:px-9 py-4 bg-[#0B1F2A] hover:bg-[#153444] text-[#FCFBF8] text-[14px] sm:text-[15px] font-semibold uppercase tracking-wider transition-all duration-200 shadow-editorial min-h-[48px] active:scale-[0.99]"
               >
-                <span>Book Appointment</span>
+                <span>Choose Your Provider</span>
                 <ArrowRight size={16} className="text-[#B39A68]" />
               </Link>
 

@@ -5,7 +5,7 @@ import {
   Upload, AlertCircle, Plus, X, ExternalLink, Share2,
   FileCheck, Shield, RotateCcw, Loader2
 } from 'lucide-react';
-import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
 import { getDb } from '../../lib/firebase';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { useCmsData } from '../../context/CmsContext';

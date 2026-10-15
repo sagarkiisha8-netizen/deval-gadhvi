@@ -30,6 +30,8 @@ interface DoctorDetailData {
 function getDefaultDoctorData(normalizedSlug: string): DoctorDetailData | null {
   // Try to find by normalized key
   const canonicalKey = normalizeProviderKey(normalizedSlug);
+  const isSankalp = canonicalKey === 'dr-sankalp-pathak' || canonicalKey === 'sankalp-pathak' || canonicalKey === 'sankalp';
+
   const found = DEFAULT_PROVIDERS.find((p) => {
     return (
       normalizeProviderKey(p.id) === canonicalKey ||
@@ -48,14 +50,14 @@ function getDefaultDoctorData(normalizedSlug: string): DoctorDetailData | null {
   const image = getProviderImage(found);
 
   return {
-    name: found.name,
+    name: isSankalp ? 'Dr. Sankalp Pathak' : found.name,
     role: found.title || found.specialty || 'Physician',
     image,
     experience: found.experienceYears ? `${found.experienceYears} years` : '',
     qualifications: found.credentials || 'MD',
     location: '337, Bloomfield Avenue, Newark, NJ-07107',
-    phone: found.phone || '(973) 412-9404',
-    email: found.email || 'medicalnewark@gmail.com',
+    phone: isSankalp ? '(973) 370-5259' : (found.phone || '(973) 412-9404'),
+    email: isSankalp ? 'mycardiovascularclinic@mycardiovascularclinic.com' : (found.email || 'medicalnewark@gmail.com'),
     about: found.bio || found.fullBio || '',
     experienceDetail: found.fullBio || found.bio || '',
     specialities: (found.specialties && found.specialties.length > 0)
@@ -96,6 +98,9 @@ export default function ProviderDetailPage() {
     if (clean === 'sankalp-pathak' || clean === 'dr-sankalp-pathak') {
       return 'dr-sankalp-pathak';
     }
+    if (clean === 'disha-patel' || clean === 'dr-disha-patel' || clean === 'disha') {
+      return 'dr-disha-patel';
+    }
     return clean;
   }, [slug]);
 
@@ -120,21 +125,28 @@ export default function ProviderDetailPage() {
   // Final doctor data — image always comes from the providers collection (via dynamicProvider)
   // or from DEFAULT_PROVIDERS. Never from localStorage or a deprecated doctor_profile collection.
   const doctor: DoctorDetailData = useMemo(() => {
+    const canonicalKey = normalizeProviderKey(normalizedSlug);
+    const isSankalp = canonicalKey === 'dr-sankalp-pathak' || canonicalKey === 'sankalp-pathak' || canonicalKey === 'sankalp';
+
     // getProviderImageSrc applies cache-busting via updatedAt timestamp
     const effectivePhoto = dynamicProvider
       ? getProviderImageSrc(dynamicProvider)
       : getProviderImage(defaultDoctor);
 
+    const docName = isSankalp ? 'Dr. Sankalp Pathak' : (dynamicProvider?.name || defaultDoctor.name);
+    const docPhone = isSankalp ? '(973) 370-5259' : (dynamicProvider?.phone || defaultDoctor.phone);
+    const docEmail = isSankalp ? 'mycardiovascularclinic@mycardiovascularclinic.com' : (dynamicProvider?.email || defaultDoctor.email);
+
     if (dynamicProvider) {
       return {
-        name: dynamicProvider.name || defaultDoctor.name,
+        name: docName,
         role: dynamicProvider.title || (dynamicProvider as any).role || defaultDoctor.role,
         image: effectivePhoto,
         experience: dynamicProvider.experienceYears ? `${dynamicProvider.experienceYears} years` : defaultDoctor.experience,
         qualifications: dynamicProvider.credentials || defaultDoctor.qualifications,
         location: defaultDoctor.location,
-        phone: dynamicProvider.phone || defaultDoctor.phone,
-        email: dynamicProvider.email || defaultDoctor.email,
+        phone: docPhone,
+        email: docEmail,
         about: dynamicProvider.fullBio || dynamicProvider.bio || defaultDoctor.about,
         experienceDetail: dynamicProvider.fullBio || dynamicProvider.bio || defaultDoctor.experienceDetail,
         specialities: dynamicProvider.specialties && dynamicProvider.specialties.length > 0
@@ -143,8 +155,8 @@ export default function ProviderDetailPage() {
       };
     }
 
-    return { ...defaultDoctor, image: effectivePhoto };
-  }, [dynamicProvider, defaultDoctor]);
+    return { ...defaultDoctor, name: docName, phone: docPhone, email: docEmail, image: effectivePhoto };
+  }, [dynamicProvider, defaultDoctor, normalizedSlug]);
 
   if (!doctor) {
     return <Navigate to="/providers" replace />;
@@ -176,36 +188,56 @@ export default function ProviderDetailPage() {
         <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-10 lg:gap-14 items-start">
             
-            {/* Left Column: Doctor Photo */}
+            {/* Left Column: Doctor Photo / Editorial Card */}
             <div className="md:col-span-5 flex justify-start">
-              {(() => {
-                const mediaItem = getSiteMedia('providers', 'doctors', normalizedSlug) ||
-                  getSiteMedia('providers', 'doctors', (slug || '').replace('dr-', '')) ||
-                  getSiteMedia('providers', 'doctors', slug || '') ||
-                  getSiteMedia('providers', normalizedSlug, 'portrait') ||
-                  getSiteMedia('providers', slug || '', 'portrait') ||
-                  getSiteMedia('providers', (slug || '').replace('dr-', ''), 'portrait');
-                return (
-                  <div className="w-full max-w-[360px] sm:max-w-[380px] aspect-[4/4.3] rounded-[26px] sm:rounded-[28px] overflow-hidden bg-slate-100 shadow-xs border border-slate-200/80">
-                    <img
-                      src={doctor.image}
-                      alt={`${doctor.name} - ${doctor.role}`}
-                      className="w-full h-full"
-                      style={{
-                        objectFit: (mediaItem?.objectFit as any) || 'cover',
-                        objectPosition: mediaItem?.position || 'top'
-                      }}
-                      referrerPolicy="no-referrer"
-                      onError={(e) => {
-                        const img = e.currentTarget;
-                        if (img.src !== defaultDoctor.image) {
-                          img.src = defaultDoctor.image;
-                        }
-                      }}
-                    />
+              {normalizedSlug === 'dr-disha-patel' || !doctor.image ? (
+                <div className="w-full max-w-[360px] sm:max-w-[380px] aspect-[4/4.3] rounded-[26px] sm:rounded-[28px] bg-[#F4EFE6] border border-[#D9D0C5] p-8 flex flex-col justify-between shadow-editorial">
+                  <div>
+                    <span className="inline-block px-3.5 py-1 bg-[#0B1F2A] text-[#F4EFE6] text-[11px] font-semibold uppercase tracking-widest mb-6">
+                      Clinical Specialist
+                    </span>
+                    <h3 className="font-serif text-3xl text-[#0B1F2A] mb-2">{doctor.name}</h3>
+                    <p className="text-sm font-semibold uppercase tracking-wider text-[#B39A68] mb-4">{doctor.qualifications}</p>
                   </div>
-                );
-              })()}
+                  <div className="space-y-4 pt-6 border-t border-[#D9D0C5]">
+                    <p className="text-sm text-[#5A6264] italic leading-relaxed">
+                      "Dedicated to providing exceptional, evidence-based physical therapy and patient-centered functional recovery."
+                    </p>
+                    <div className="pt-2 text-xs text-[#0B1F2A]/70 uppercase tracking-widest font-medium">
+                      Professional Profile
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                (() => {
+                  const mediaItem = getSiteMedia('providers', 'doctors', normalizedSlug) ||
+                    getSiteMedia('providers', 'doctors', (slug || '').replace('dr-', '')) ||
+                    getSiteMedia('providers', 'doctors', slug || '') ||
+                    getSiteMedia('providers', normalizedSlug, 'portrait') ||
+                    getSiteMedia('providers', slug || '', 'portrait') ||
+                    getSiteMedia('providers', (slug || '').replace('dr-', ''), 'portrait');
+                  return (
+                    <div className="w-full max-w-[360px] sm:max-w-[380px] aspect-[4/4.3] rounded-[26px] sm:rounded-[28px] overflow-hidden bg-slate-100 shadow-xs border border-slate-200/80">
+                      <img
+                        src={doctor.image}
+                        alt={`${doctor.name} - ${doctor.role}`}
+                        className="w-full h-full"
+                        style={{
+                          objectFit: (mediaItem?.objectFit as any) || 'cover',
+                          objectPosition: mediaItem?.position || 'top'
+                        }}
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          if (img.src !== defaultDoctor.image) {
+                            img.src = defaultDoctor.image;
+                          }
+                        }}
+                      />
+                    </div>
+                  );
+                })()
+              )}
             </div>
 
             {/* Right Column: Name, Title & Key-Value Details */}
@@ -278,6 +310,27 @@ export default function ProviderDetailPage() {
                   </span>
                 </div>
               </div>
+
+              {/* Call to Book CTA Button */}
+              <div className="mt-8 pt-6 border-t border-slate-200/90 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                <a
+                  href={`tel:${doctor.phone.replace(/[^0-9]/g, '')}`}
+                  className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-[#0B1F2A] hover:bg-[#153444] text-white text-[14px] font-semibold uppercase tracking-wider transition-all shadow-editorial"
+                >
+                  <span className="w-2 h-2 rounded-full bg-[#B39A68] animate-pulse"></span>
+                  <span>Call to Book: {doctor.phone}</span>
+                </a>
+                <a
+                  href={`mailto:${doctor.email}`}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-4 border border-slate-300 hover:border-slate-900 text-slate-800 text-[14px] font-semibold uppercase tracking-wider transition-colors"
+                >
+                  <Mail size={16} className="text-[#315B52]" />
+                  <span>Email Doctor</span>
+                </a>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">
+                Please do not send sensitive medical information by email.
+              </p>
 
               {/* Bottom Divider */}
               <div className="border-t border-slate-200/90 my-6" />

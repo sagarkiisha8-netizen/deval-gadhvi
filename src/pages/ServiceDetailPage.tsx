@@ -5,18 +5,17 @@ import {
   CheckCircle2, ArrowRight, Phone, Calendar, MapPin, 
   Clock, ShieldCheck, ChevronDown, ChevronUp, Stethoscope, 
   Activity, HeartPulse, Award, User, HelpCircle, FileText,
-  AlertCircle, Sparkles, Navigation, Share2, Check
+  AlertCircle, Sparkles, Navigation, Share2, Check, Mail
 } from 'lucide-react';
 import SeoHead from '../components/SeoHead';
 import { LOCAL_SERVICES_DATA, NEWARK_PRACTICE_INFO } from '../data/localSeoData';
 import { useCmsData } from '../context/CmsContext';
-import AppointmentBookingForm from '../components/AppointmentBookingForm';
+
 
 export default function ServiceDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const { providers, services: dynamicServices, getMediaUrl, getSiteMedia } = useCmsData();
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
-  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Normalize slug to match keys
@@ -415,13 +414,13 @@ export default function ServiceDetailPage() {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
-                <button
-                  onClick={() => setIsBookingModalOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 bg-primary-600 text-white px-7 py-3.5 rounded-full text-base font-semibold hover:bg-primary-700 shadow-md shadow-primary-600/20 transition-all hover:scale-105"
+                <Link
+                  to="/providers"
+                  className="inline-flex items-center justify-center gap-2 bg-[#0B1F2A] text-white px-7 py-3.5 rounded-full text-base font-semibold hover:bg-[#153444] shadow-md transition-all hover:scale-105"
                 >
-                  <Calendar size={18} />
-                  <span>Book Appointment in Newark</span>
-                </button>
+                  <Calendar size={18} className="text-[#B39A68]" />
+                  <span>Choose Your Provider</span>
+                </Link>
 
                 <a
                   href={`tel:${NEWARK_PRACTICE_INFO.rawPhone}`}
@@ -698,31 +697,43 @@ export default function ServiceDetailPage() {
             
             {/* Booking & Call Card */}
             <div className="bg-white rounded-3xl p-7 border border-slate-200/80 shadow-md sticky top-32">
-              <span className="text-xs font-bold text-primary-600 uppercase tracking-wider block mb-2">
-                Newark Appointment Desk
+              <span className="text-xs font-bold text-[#315B52] uppercase tracking-wider block mb-2">
+                Direct Consultation Desk
               </span>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">
-                Schedule Your Consultation
+              <h3 className="text-xl font-bold text-[#0B1F2A] mb-3">
+                Call to Book Appointment
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                Book online in 60 seconds or speak directly with our front desk coordinators on Bloomfield Ave.
+                Please call your physician directly to schedule your consultation at our Newark facility.
               </p>
 
-              <button
-                onClick={() => setIsBookingModalOpen(true)}
-                className="w-full inline-flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3.5 px-4 rounded-2xl shadow-md transition-all mb-3 text-sm"
-              >
-                <Calendar size={16} />
-                <span>Book Appointment Online</span>
-              </button>
-
-              <a
-                href={`tel:${NEWARK_PRACTICE_INFO.rawPhone}`}
-                className="w-full inline-flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-3.5 px-4 rounded-2xl transition-colors text-sm"
-              >
-                <Phone size={16} className="text-primary-600" />
-                <span>Call {NEWARK_PRACTICE_INFO.phone}</span>
-              </a>
+              {(() => {
+                const docPhone = leadDoctor?.phone || (serviceData.leadDoctorSlug?.includes('sankalp') ? '(973) 370-5259' : NEWARK_PRACTICE_INFO.phone);
+                const docEmail = leadDoctor?.email || 'medicalnewark@gmail.com';
+                const docPhoneHref = `tel:${docPhone.replace(/[^0-9]/g, '')}`;
+                const docEmailHref = `mailto:${docEmail}`;
+                return (
+                  <div className="space-y-3 mb-2">
+                    <a
+                      href={docPhoneHref}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-[#0B1F2A] hover:bg-[#153444] text-white font-semibold py-3.5 px-4 rounded-2xl shadow-md transition-all text-sm"
+                    >
+                      <Phone size={16} className="text-[#B39A68]" />
+                      <span>Call to Book: {docPhone}</span>
+                    </a>
+                    <a
+                      href={docEmailHref}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-3 px-4 rounded-2xl transition-colors text-xs"
+                    >
+                      <Mail size={15} className="text-[#315B52]" />
+                      <span>{docEmail}</span>
+                    </a>
+                    <p className="text-[11px] text-slate-500 text-center pt-1">
+                      Please do not send sensitive medical information by email.
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* Lead Doctor Feature */}
               {leadDoctor && (() => {
@@ -806,27 +817,6 @@ export default function ServiceDetailPage() {
         </div>
       </section>
 
-      {/* Appointment Booking Modal */}
-      {isBookingModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="relative w-full max-w-2xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setIsBookingModalOpen(false)}
-              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 flex items-center justify-center font-bold"
-              aria-label="Close booking modal"
-            >
-              ✕
-            </button>
-            <div className="mb-4">
-              <h3 className="text-xl font-bold text-slate-900">Book Your Appointment</h3>
-              <p className="text-xs text-slate-500">Service: {serviceData.name}</p>
-            </div>
-            <AppointmentBookingForm
-              onSuccess={() => setIsBookingModalOpen(false)}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

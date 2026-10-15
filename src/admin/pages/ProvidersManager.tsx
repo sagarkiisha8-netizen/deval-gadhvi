@@ -27,6 +27,7 @@ export default function ProvidersManager() {
   const [editingProvider, setEditingProvider] = useState<Partial<Provider> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [removeImageConfirmTarget, setRemoveImageConfirmTarget] = useState<'profile' | 'homepage' | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [photoUploadSuccessMsg, setPhotoUploadSuccessMsg] = useState<string | null>(null);
@@ -178,8 +179,15 @@ export default function ProvidersManager() {
       const db = getDb();
       const q = query(collection(db, 'providers'), orderBy('displayOrder', 'asc'));
       const unsubscribe = onSnapshot(q, (snapshot) => {
+        const canonicalMap = new Map<string, Provider>();
+        // 1. Seed with DEFAULT_PROVIDERS for complete clinical metadata (including Dr. Disha Patel)
+        DEFAULT_PROVIDERS.forEach((def) => {
+          const defKey = normalizeProviderKey(def.id || def.slug || def.name);
+          canonicalMap.set(defKey, { ...def });
+        });
+
+        // 2. Merge Firestore snapshot docs
         if (!snapshot.empty) {
-          const canonicalMap = new Map<string, Provider>();
           snapshot.forEach((d) => {
             const raw = { id: d.id, ...(d.data() as any) } as Provider;
             const key = normalizeProviderKey(raw.id || raw.slug || raw.name || '');
@@ -202,34 +210,16 @@ export default function ProvidersManager() {
               raw.photoUrl = fallbackUrl;
             }
 
-            if (!canonicalMap.has(key)) {
-              canonicalMap.set(key, raw);
-            } else {
-              const existing = canonicalMap.get(key)!;
-              const parseTs = (t: any): number => {
-                if (!t) return 0;
-                if (typeof t === 'number') return t;
-                if (typeof t?.toMillis === 'function') return t.toMillis();
-                if (t?.seconds) return t.seconds * 1000;
-                const n = new Date(t).getTime();
-                return isNaN(n) ? 0 : n;
-              };
-              const existingTime = parseTs(existing.updatedAt);
-              const currTime = parseTs(raw.updatedAt);
-              if (currTime > existingTime || (!existing.imageUrl && raw.imageUrl)) {
-                canonicalMap.set(key, { ...existing, ...raw });
-              }
-            }
+            const existing = canonicalMap.get(key) || {};
+            canonicalMap.set(key, { ...existing, ...raw });
           });
-          const list = Array.from(canonicalMap.values());
-          list.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
-          setProviders(list);
-          try {
-            localStorage.setItem('newark_cms_providers', JSON.stringify(list));
-          } catch { }
-        } else {
-          setProviders(DEFAULT_PROVIDERS);
         }
+        const list = Array.from(canonicalMap.values());
+        list.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+        setProviders(list);
+        try {
+          localStorage.setItem('newark_cms_providers', JSON.stringify(list));
+        } catch { }
         setLoading(false);
       }, (err) => {
         console.warn('Providers subscription error:', err);
@@ -286,12 +276,14 @@ export default function ProvidersManager() {
     setLocalPreviewUrl(null);
     setPhotoUploadError(null);
     setPhotoUploadSuccessMsg(null);
-    const canonicalImg = getProviderImage(p);
+    const isRemoved = p.imageRemoved === true || p.imageUrl === '' || p.profileImage === '';
+    const canonicalImg = isRemoved ? '' : getProviderImage(p);
     setEditingProvider({
       ...p,
-      profileImage: p.imageUrl || canonicalImg,
-      imageUrl: p.imageUrl || canonicalImg,
-      photoUrl: p.imageUrl || canonicalImg,
+      profileImage: isRemoved ? '' : (p.imageUrl || canonicalImg),
+      imageUrl: isRemoved ? '' : (p.imageUrl || canonicalImg),
+      photoUrl: isRemoved ? '' : (p.imageUrl || canonicalImg),
+      imageRemoved: isRemoved,
       showOnHomepage: p.showOnHomepage !== false,
       showOnProvidersPage: p.showOnProvidersPage !== false,
     });
@@ -313,10 +305,13 @@ export default function ProvidersManager() {
       return;
     }
 
+    const isRemoved = editingProvider.imageRemoved === true || currentImg === '';
+
     setIsSaving(true);
     try {
       const db = getDb();
       const id = editingProvider.id || `provider-${Date.now()}`;
+      const canonicalKey = normalizeProviderKey(id || editingProvider.slug || editingProvider.name);
       const isPrahlad = canonicalKey === 'dr-prahlad-gadhvi' || canonicalKey === 'prahlad-gadhavi' || canonicalKey === 'prahlad-gadhvi';
       const canonicalId = isPrahlad ? 'dr-prahlad-gadhvi' : id;
 
@@ -326,10 +321,11 @@ export default function ProvidersManager() {
         ...editingProvider,
         id: canonicalId,
         slug: editingProvider.slug || (isPrahlad ? 'dr-prahlad-gadhvi' : editingProvider.name.toLowerCase().replace(/[^a-z0-9]/g, '-')),
-        profileImage: currentImg,
-        imageUrl: currentImg,
-        photoUrl: currentImg,
-        imageKey: editingProvider.imageKey || '',
+        profileImage: isRemoved ? '' : currentImg,
+        imageUrl: isRemoved ? '' : currentImg,
+        photoUrl: isRemoved ? '' : currentImg,
+        imageRemoved: isRemoved,
+        imageKey: isRemoved ? '' : (editingProvider.imageKey || ''),
         homepageImageOverride: editingProvider.homepageImageOverride?.trim() || '',
         altText: editingProvider.altText?.trim() || editingProvider.name,
         showOnHomepage: editingProvider.showOnHomepage ?? true,
@@ -686,34 +682,56 @@ export default function ProvidersManager() {
             <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-6">
 
               {/* Image Control Section 1: Main Provider Photo */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                  <div className="w-24 h-28 rounded-2xl bg-slate-200 overflow-hidden shrink-0 border-2 border-white shadow-sm relative">
-                    <img
-                      src={localPreviewUrl || editingProvider.imageUrl || getProviderImage(editingProvider)}
-                      alt="Provider preview"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-slate-900">Primary Provider Portrait (Profile & Directory)</h4>
-                      {editingProvider.imageUrl && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const key = normalizeProviderKey(editingProvider.id || editingProvider.slug || editingProvider.name);
-                            const def = DEFAULT_PROVIDER_IMAGES[key] || GENERIC_DOCTOR_PLACEHOLDER;
-                            setEditingProvider(prev => prev ? { ...prev, imageUrl: def, photoUrl: def, profileImage: def } : null);
-                          }}
-                          className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
-                          title="Reset to default authentic doctor portrait"
-                        >
-                          <RotateCcw size={12} />
-                          <span>Reset to Default</span>
-                        </button>
-                      )}
-                    </div>
+              {(() => {
+                const activePortrait = editingProvider.imageRemoved ? null : (localPreviewUrl || editingProvider.imageUrl || editingProvider.profileImage || editingProvider.photoUrl || getProviderImage(editingProvider));
+                return (
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+                      <div className="w-24 h-28 rounded-2xl bg-slate-200 overflow-hidden shrink-0 border-2 border-white shadow-sm relative flex items-center justify-center">
+                        {activePortrait ? (
+                          <img
+                            src={activePortrait}
+                            alt="Provider preview"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center text-slate-400 bg-slate-100">
+                            <ImageIcon size={20} className="mb-1 text-slate-400" />
+                            <span className="text-[10px] text-slate-500 font-semibold leading-tight">No Portrait</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-bold text-slate-900">Primary Provider Portrait (Profile & Directory)</h4>
+                          <div className="flex items-center gap-3">
+                            {Boolean(activePortrait) && (
+                              <button
+                                type="button"
+                                onClick={() => setRemoveImageConfirmTarget('profile')}
+                                className="text-xs text-red-600 hover:text-red-800 flex items-center gap-1 cursor-pointer font-medium"
+                                title="Remove primary doctor portrait"
+                              >
+                                <Trash2 size={12} />
+                                <span>Remove Image</span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const key = normalizeProviderKey(editingProvider.id || editingProvider.slug || editingProvider.name);
+                                const def = DEFAULT_PROVIDER_IMAGES[key] || GENERIC_DOCTOR_PLACEHOLDER;
+                                setEditingProvider(prev => prev ? { ...prev, imageUrl: def, photoUrl: def, profileImage: def, imageRemoved: false } : null);
+                                setLocalPreviewUrl(null);
+                              }}
+                              className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
+                              title="Reset to default authentic doctor portrait"
+                            >
+                              <RotateCcw size={12} />
+                              <span>Reset to Default</span>
+                            </button>
+                          </div>
+                        </div>
                     <p className="text-xs text-slate-500">Official clinical portrait stored permanently in Cloudflare R2 and displayed across the website.</p>
 
                     <div className="flex flex-wrap items-center gap-2.5 pt-1">
@@ -780,6 +798,8 @@ export default function ProvidersManager() {
                   </div>
                 )}
               </div>
+            );
+          })()}
 
               {/* Image Control Section 2: Homepage Override Portrait */}
               <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-200/80 space-y-3">
@@ -1106,6 +1126,53 @@ export default function ProvidersManager() {
           }
         }}
       />
+
+      {/* Remove Image Confirmation Modal */}
+      {removeImageConfirmTarget && (
+        <div className="fixed inset-0 z-60 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-200">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-slate-900">Remove Doctor's Image?</h4>
+                <p className="text-xs text-slate-500">The doctor profile and other details will remain unchanged.</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setRemoveImageConfirmTarget(null)}
+                className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (removeImageConfirmTarget === 'profile') {
+                    setEditingProvider(prev => prev ? {
+                      ...prev,
+                      imageUrl: '',
+                      photoUrl: '',
+                      profileImage: '',
+                      imageRemoved: true
+                    } : null);
+                    setLocalPreviewUrl(null);
+                  } else if (removeImageConfirmTarget === 'homepage') {
+                    setEditingProvider(prev => prev ? { ...prev, homepageImageOverride: '' } : null);
+                  }
+                  setRemoveImageConfirmTarget(null);
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Remove Image
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -21,7 +21,7 @@ export default function Footer() {
     { name: 'Patient Resources & Forms', href: '/patient-resources' },
     { name: 'Accepted Insurances & Self-Pay', href: '/insurance-pricing' },
     { name: 'The Health Journal (Blog)', href: '/blog' },
-    { name: 'Schedule an Appointment', href: '/appointments' },
+    { name: 'Choose Your Provider', href: '/providers' },
     { name: 'Contact & Location Directions', href: '/contact' }
   ];
 
@@ -42,10 +42,10 @@ export default function Footer() {
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <Link
-              to="/appointments"
+              to="/providers"
               className="inline-flex items-center justify-center px-7 py-4 bg-[#B39A68] hover:bg-[#c4ab79] text-[#0B1F2A] text-[14px] font-bold uppercase tracking-wider transition-colors"
             >
-              Book an Appointment
+              Choose Provider
             </Link>
             <a
               href={`tel:${NEWARK_PRACTICE_INFO.rawPhone}`}

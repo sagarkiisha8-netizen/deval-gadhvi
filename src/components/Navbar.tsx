@@ -102,23 +102,23 @@ export default function Navbar() {
           ))}
         </nav>
 
-        {/* Right: Editorial BOOK APPOINTMENT Button (Tablet / Desktop) */}
+        {/* Right: Editorial CHOOSE PROVIDER Button (Tablet / Desktop) */}
         <div className="hidden sm:flex items-center gap-3 md:gap-4 shrink-0">
           <Link
-            to="/appointments"
+            to="/providers"
             className="inline-flex items-center justify-center min-h-[44px] px-5 sm:px-6 py-3 bg-[#0B1F2A] hover:bg-[#153444] text-[#FCFBF8] text-[13.5px] sm:text-[14px] font-semibold tracking-wider uppercase rounded-none border border-[#0B1F2A] hover:border-[#B39A68] shadow-xs transition-all duration-200 active:scale-[0.99]"
           >
-            Book Appointment
+            Choose Provider
           </Link>
         </div>
 
         {/* Mobile Hamburger & Quick CTA Toggle */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 lg:hidden">
           <Link
-            to="/appointments"
+            to="/providers"
             className="sm:hidden inline-flex items-center justify-center min-h-[38px] px-3 py-1.5 bg-[#0B1F2A] hover:bg-[#153444] text-[#FCFBF8] text-[11px] font-semibold uppercase tracking-wider shrink-0 transition-colors"
           >
-            Book
+            Providers
           </Link>
           <button
             type="button"
@@ -166,11 +166,11 @@ export default function Navbar() {
             style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
           >
             <Link
-              to="/appointments"
+              to="/providers"
               onClick={() => setMobileMenuOpen(false)}
               className="w-full min-h-[48px] flex items-center justify-center py-3 text-center bg-[#0B1F2A] hover:bg-[#153444] text-white font-semibold uppercase tracking-wider text-[13.5px] transition-colors"
             >
-              Book Appointment
+              Choose Provider
             </Link>
             <a
               href={`tel:${NEWARK_PRACTICE_INFO.rawPhone}`}

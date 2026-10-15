@@ -62,16 +62,16 @@ export default function MobileFloatingBar() {
           <span className="text-[10.5px] uppercase tracking-wider font-semibold">WhatsApp</span>
         </a>
 
-        {/* Book Appointment CTA */}
+        {/* Providers CTA */}
         <Link
-          to="/appointments"
+          to="/providers"
           className="flex flex-col items-center justify-center gap-1 py-1 px-1 text-[#B39A68] hover:text-white active:bg-white/5 transition-colors"
-          aria-label="Book an appointment"
+          aria-label="Choose a provider"
         >
           <div className="w-8 h-8 bg-[#315B52] border border-[#315B52] text-[#FCFBF8] flex items-center justify-center shadow-xs">
             <Calendar size={15} />
           </div>
-          <span className="text-[10.5px] uppercase tracking-wider font-bold text-[#FCFBF8]">Book</span>
+          <span className="text-[10.5px] uppercase tracking-wider font-bold text-[#FCFBF8]">Doctors</span>
         </Link>
 
       </div>

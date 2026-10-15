@@ -33,7 +33,7 @@ export default function MediaLibrary() {
     const targetUrl = selectedItem.url.split('?')[0];
 
     // Check siteMedia registry
-    Object.values(siteMedia).forEach(item => {
+    Object.values(siteMedia).forEach((item: any) => {
       if (item.url && item.url.split('?')[0] === targetUrl) {
         list.push({
           label: `${item.label} (${item.pageKey})`,

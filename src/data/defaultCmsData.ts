@@ -7,17 +7,17 @@ import {
 export const DEFAULT_PROVIDERS: Provider[] = [
   {
     id: 'dr-prahlad-gadhvi',
-    name: 'Dr. Prahlad Gadhavi',
+    name: 'Dr. Prahlad',
     credentials: 'MBBS, MD',
     title: 'Primary Care Physician',
     specialty: 'Internal Medicine Specialist',
-    bio: "Dr. Prahlad Gadhavi is a board-certified Internal Medicine Specialist at Newark Medical Associates. He earned his bachelor's degree in Medicine and Surgery at B.J. Medical College in Ahmedabad, graduating with honors in 2003. He completed his residency in Internal Medicine at Mount Sinai and Beth Israel Medical Centers in New York City.",
-    fullBio: "With more than 20 years of diverse experience in Internal Medicine, Dr. Gadhavi has built a strong reputation for providing compassionate and comprehensive care. His patients trust him for his thorough approach and commitment to helping them understand their treatment options.",
+    bio: "Dr. Prahlad is a board-certified Internal Medicine Specialist at Newark Medical Associates. He earned his bachelor's degree in Medicine and Surgery at B.J. Medical College in Ahmedabad, graduating with honors in 2003. He completed his residency in Internal Medicine at Mount Sinai and Beth Israel Medical Centers in New York City.",
+    fullBio: "With more than 20 years of diverse experience in Internal Medicine, Dr. Prahlad has built a strong reputation for providing compassionate and comprehensive care. His patients trust him for his thorough approach and commitment to helping them understand their treatment options.",
     image: 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-prahlad-gadhavi/1791280065505-dr-prahlad-gadhavi.png',
     imageUrl: 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-prahlad-gadhavi/1791280065505-dr-prahlad-gadhavi.png',
     photoUrl: 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-prahlad-gadhavi/1791280065505-dr-prahlad-gadhavi.png',
     profileImage: 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-prahlad-gadhavi/1791280065505-dr-prahlad-gadhavi.png',
-    altText: 'Dr. Prahlad Gadhavi, MBBS, MD - Primary Care Physician',
+    altText: 'Dr. Prahlad, MBBS, MD - Primary Care Physician',
     showOnHomepage: true,
     showOnProvidersPage: true,
     experienceYears: 20,
@@ -43,8 +43,8 @@ export const DEFAULT_PROVIDERS: Provider[] = [
     displayOrder: 1,
     isActive: true,
     slug: 'dr-prahlad-gadhvi',
-    seoTitle: 'Dr. Prahlad Gadhavi, MBBS, MD | Primary Care Physician in Newark NJ',
-    metaDescription: 'Book an appointment with Dr. Prahlad Gadhavi, MBBS, MD at Newark Medical Associates. Over 20 years experience in internal medicine and primary care.'
+    seoTitle: 'Dr. Prahlad, MBBS, MD | Primary Care Physician in Newark NJ',
+    metaDescription: 'Call Dr. Prahlad at Newark Medical Associates. Over 20 years experience in internal medicine and primary care.'
   },
   {
     id: 'dr-deval-gadhvi',
@@ -89,17 +89,17 @@ export const DEFAULT_PROVIDERS: Provider[] = [
   },
   {
     id: 'dr-sankalp-pathak',
-    name: 'Dr. Sankalp Pathak',
+    name: 'Dr. Sankalp',
     credentials: 'MD',
     title: 'Cardiopulmonary & Diagnostic Specialist',
     specialty: 'Preventive Cardiology & Rapid Diagnostics',
-    bio: 'Focused on early detection, Dr. Pathak combines state-of-the-art diagnostic imaging, EKG/Echo diagnostics, and rapid clinical protocols to safeguard cardiac health.',
-    fullBio: 'Dr. Sankalp Pathak focuses on early diagnostic detection, on-site cardiovascular assessments, and comprehensive pulmonary care. His patient-first philosophy ensures each individual receives clear explanations and timely interventions.',
+    bio: 'Focused on early detection, Dr. Sankalp combines state-of-the-art diagnostic imaging, EKG/Echo diagnostics, and rapid clinical protocols to safeguard cardiac health.',
+    fullBio: 'Dr. Sankalp focuses on early diagnostic detection, on-site cardiovascular assessments, and comprehensive pulmonary care. His patient-first philosophy ensures each individual receives clear explanations and timely interventions.',
     image: 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-sankalp-pathak/dr-sankalp-pathak.png',
     imageUrl: 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-sankalp-pathak/dr-sankalp-pathak.png',
     photoUrl: 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-sankalp-pathak/dr-sankalp-pathak.png',
     profileImage: 'https://pub-463524c5dd1e422ca67b4960ad60e690.r2.dev/providers/dr-sankalp-pathak/dr-sankalp-pathak.png',
-    altText: 'Dr. Sankalp Pathak, MD - Cardiopulmonary & Diagnostic Specialist',
+    altText: 'Dr. Sankalp, MD - Cardiopulmonary & Diagnostic Specialist',
     showOnHomepage: true,
     showOnProvidersPage: true,
     experienceYears: 14,
@@ -119,14 +119,62 @@ export const DEFAULT_PROVIDERS: Provider[] = [
     rating: 4.8,
     reviewsCount: 96,
     isAcceptingPatients: true,
-    phone: '(973) 412-9404',
-    email: 'medicalnewark@gmail.com',
+    phone: '(973) 370-5259',
+    email: 'mycardiovascularclinic@mycardiovascularclinic.com',
     appointmentDays: ['Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
     displayOrder: 3,
     isActive: true,
     slug: 'dr-sankalp-pathak',
-    seoTitle: 'Dr. Sankalp Pathak, MD | Diagnostic & Cardiopulmonary Specialist',
-    metaDescription: 'Schedule a consultation with Dr. Sankalp Pathak for on-site diagnostic testing, EKG, Echocardiogram, and preventative care.'
+    seoTitle: 'Dr. Sankalp, MD | Diagnostic & Cardiopulmonary Specialist',
+    metaDescription: 'Call Dr. Sankalp for on-site diagnostic testing, EKG, Echocardiogram, and preventative care.'
+  },
+  {
+    id: 'dr-disha-patel',
+    name: 'Dr. Disha Patel',
+    credentials: 'PT, DPT, GCS',
+    title: 'Physical Therapist',
+    specialty: 'Geriatric, Neurological & Orthopedic Rehabilitation',
+    bio: "Dr. Disha Patel, PT, DPT, GCS, is a physical therapist with 10 years of experience in geriatric, neurological, and orthopedic rehabilitation. Her clinical focus includes Parkinson's disease rehabilitation, balance training, fall prevention, mobility improvement, and orthopedic recovery.",
+    fullBio: "Dr. Disha Patel is a physical therapist with 10 years of experience providing rehabilitation care. She holds PT, DPT, and GCS credentials and is a Board-Certified Geriatric Clinical Specialist and LSVT BIG® Certified therapist.\n\nHer clinical interests include geriatric and neurological rehabilitation, Parkinson's disease, balance and mobility challenges, fall prevention, and orthopedic recovery.\n\nHer approach focuses on personalized rehabilitation strategies that support mobility, physical function, independence, and quality of life.",
+    image: '',
+    imageUrl: '',
+    photoUrl: '',
+    profileImage: '',
+    altText: 'Dr. Disha Patel – Physical Therapist at Newark Medical Associates',
+    showOnHomepage: false,
+    showOnProvidersPage: true,
+    experienceYears: 10,
+    education: [
+      'Doctor of Physical Therapy (DPT)',
+      'Board-Certified Geriatric Clinical Specialist (GCS)',
+      'LSVT BIG® Certified Therapist'
+    ],
+    certifications: [
+      'Board-Certified Geriatric Clinical Specialist (GCS)',
+      'LSVT BIG® Certified',
+      'New Jersey Physical Therapy License'
+    ],
+    specialties: [
+      'Geriatric Rehabilitation',
+      'Neurological Rehabilitation',
+      'Parkinson\'s Disease Rehabilitation',
+      'Balance & Mobility',
+      'Fall Prevention',
+      'Orthopedic Recovery'
+    ],
+    languages: ['English'],
+    insuranceAccepted: ['Medicare', 'Horizon BCBS', 'Aetna', 'Cigna', 'UnitedHealthcare'],
+    rating: 4.9,
+    reviewsCount: 84,
+    isAcceptingPatients: true,
+    phone: '(862) 285-4400',
+    email: 'info@motionrehabpt.com',
+    appointmentDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    displayOrder: 4,
+    isActive: true,
+    slug: 'dr-disha-patel',
+    seoTitle: 'Dr. Disha Patel, PT, DPT, GCS | Physical Therapist in Newark NJ',
+    metaDescription: 'Call Dr. Disha Patel at Newark Medical Associates for geriatric, neurological, and orthopedic physical therapy and rehabilitation.'
   }
 ];
 
@@ -394,6 +442,23 @@ export const DEFAULT_HOME_PAGE: HomePageContent = {
     tag: 'Your Care Journey',
     title: 'Simple, Transparent, and Focused on Your Well-being',
     subtitle: 'From scheduling to post-visit follow-ups, here is how we ensure seamless medical care.'
+  },
+  whyChooseUs: {
+    tag: 'Why Choose Us',
+    title: 'Excellence in Primary & Preventive Care',
+    subtitle: 'Discover what makes Newark Medical Associates the trusted healthcare choice for families across Essex County.'
+  },
+  testimonials: {
+    tag: 'Patient Testimonials',
+    title: 'Trusted by Our Community',
+    subtitle: 'Read real reviews from patients who experience compassionate, high-quality care at our Newark clinic.'
+  },
+  ctaBanner: {
+    headline: 'Ready to prioritize your health with experienced physicians?',
+    subtitle: 'Book your appointment online today or call our Newark clinic directly.',
+    buttonText: 'Book an Appointment',
+    buttonLink: '/appointments',
+    phoneText: '(973) 412-9404'
   },
   faq: {
     tag: 'Frequently Asked Questions',

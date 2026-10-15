@@ -124,6 +124,7 @@ export interface Provider {
   image?: string;
   profileImage?: string;
   homepageImageOverride?: string;
+  imageRemoved?: boolean;
   altText?: string;
   showOnHomepage?: boolean;
   showOnProvidersPage?: boolean;

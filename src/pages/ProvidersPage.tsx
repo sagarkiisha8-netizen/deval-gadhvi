@@ -99,19 +99,42 @@ export default function ProvidersPage() {
                 >
                   {/* Portrait Column: 4:5 Ratio */}
                   <div className={`lg:col-span-5 ${isEven ? 'lg:order-1' : 'lg:order-2'}`}>
-                    <div className="relative aspect-[4/5] overflow-hidden bg-[#F4EFE6] border border-[#D9D0C5] shadow-editorial group">
-                      <img
-                        src={getProviderImageSrc(docItem)}
-                        alt={docItem.name}
-                        className="w-full h-full group-hover:scale-103 transition-transform duration-700"
-                        style={{ objectFit: 'cover', objectPosition: 'center top' }}
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="absolute bottom-4 left-4 right-4 bg-[#0B1F2A]/90 p-3 text-center text-xs text-[#D9D0C5] uppercase tracking-widest font-semibold">
-                        {docItem.experienceYears ? `${docItem.experienceYears}+ Years Experience` : (docItem as any).experience || ''}
+                    {docItem.id === 'dr-disha-patel' || !getProviderImageSrc(docItem) ? (
+                      <div className="relative aspect-[4/5] bg-[#F4EFE6] border border-[#D9D0C5] p-8 sm:p-10 flex flex-col justify-between shadow-editorial">
+                        <div>
+                          <span className="inline-block px-3 py-1 bg-[#0B1F2A] text-[#F4EFE6] text-[11px] font-semibold uppercase tracking-widest mb-4">
+                            Clinical Specialist
+                          </span>
+                          <h3 className="font-serif text-3xl text-[#0B1F2A] mb-2">{docItem.name}</h3>
+                          <p className="text-sm text-[#B39A68] font-bold uppercase tracking-wider">{docItem.credentials || 'PT, DPT, GCS'}</p>
+                        </div>
+                        <div className="space-y-4 pt-6 border-t border-[#D9D0C5]">
+                          <p className="text-sm text-[#5A6264] italic leading-relaxed">
+                            "Committed to evidence-based physical therapy and patient-centered functional recovery without personal portrait display."
+                          </p>
+                          <Link
+                            to={`/providers/${docItem.slug || 'dr-disha-patel'}`}
+                            className="inline-flex items-center gap-2 text-xs uppercase tracking-widest font-semibold text-[#0B1F2A] hover:text-[#B39A68] transition-colors"
+                          >
+                            View Full Profile <ArrowRight className="w-3.5 h-3.5" />
+                          </Link>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="relative aspect-[4/5] overflow-hidden bg-[#F4EFE6] border border-[#D9D0C5] shadow-editorial group">
+                        <img
+                          src={getProviderImageSrc(docItem)}
+                          alt={docItem.name}
+                          className="w-full h-full group-hover:scale-103 transition-transform duration-700"
+                          style={{ objectFit: 'cover', objectPosition: 'center top' }}
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute bottom-4 left-4 right-4 bg-[#0B1F2A]/90 p-3 text-center text-xs text-[#D9D0C5] uppercase tracking-widest font-semibold">
+                          {docItem.experienceYears ? `${docItem.experienceYears}+ Years Experience` : (docItem as any).experience || ''}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Biography & Details Column */}

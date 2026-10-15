@@ -27,6 +27,7 @@ export function normalizeProviderKey(idOrSlugOrName: string = ''): string {
   if (clean.includes('prahlad')) return 'dr-prahlad-gadhvi';
   if (clean.includes('deval')) return 'dr-deval-gadhvi';
   if (clean.includes('sankalp')) return 'dr-sankalp-pathak';
+  if (clean.includes('disha')) return 'dr-disha-patel';
   return clean.startsWith('dr-') ? clean : `dr-${clean}`;
 }
 
@@ -40,10 +41,16 @@ export function normalizeProviderKey(idOrSlugOrName: string = ''): string {
 export function getProviderImage(provider: any, options?: { forHomepage?: boolean }): string {
   if (!provider) return GENERIC_DOCTOR_PLACEHOLDER;
 
+  const directKey = normalizeProviderKey(typeof provider === 'string' ? provider : (provider.id || provider.slug || provider.name || ''));
+  if (directKey === 'dr-disha-patel') {
+    return '';
+  }
+
   // Direct string passed (e.g. image URL or slug)
   if (typeof provider === 'string' && provider.trim() !== '') {
     const trimmed = provider.trim();
     const key = normalizeProviderKey(trimmed);
+    if (key === 'dr-disha-patel') return '';
 
     // If just a slug or doctor name was passed
     if (!trimmed.startsWith('http') && !trimmed.startsWith('/') && !trimmed.startsWith('data:')) {
@@ -73,6 +80,23 @@ export function getProviderImage(provider: any, options?: { forHomepage?: boolea
 
   const key = normalizeProviderKey(provider.id || provider.slug || provider.name || '');
 
+  // Check if image was explicitly removed or imageRemoved flag is true
+  const isExplicitlyRemoved = 
+    provider.imageRemoved === true ||
+    provider.imageUrl === '' ||
+    provider.profileImage === '' ||
+    provider.photoUrl === '' ||
+    provider.image === '' ||
+    provider.imageUrl === null ||
+    provider.profileImage === null;
+
+  if (isExplicitlyRemoved) {
+    if (options?.forHomepage && provider.homepageImageOverride && typeof provider.homepageImageOverride === 'string' && provider.homepageImageOverride.trim() !== '') {
+      return provider.homepageImageOverride.trim();
+    }
+    return GENERIC_DOCTOR_PLACEHOLDER;
+  }
+
   // 1. Homepage override ONLY if requested for homepage
   if (options?.forHomepage && provider.homepageImageOverride && typeof provider.homepageImageOverride === 'string' && provider.homepageImageOverride.trim() !== '') {
     return provider.homepageImageOverride.trim();
@@ -82,6 +106,16 @@ export function getProviderImage(provider: any, options?: { forHomepage?: boolea
   const candidate = (provider.imageUrl || provider.profileImage || provider.photoUrl || provider.image || '').trim();
 
   if (candidate && !candidate.startsWith('blob:')) {
+    // Sanitize against cross-doctor contamination (e.g. Dr. Disha pointing to dr-sankalp-pathak)
+    const otherDoctors = ['dr-sankalp-pathak', 'dr-prahlad-gadhvi', 'dr-deval-gadhvi', 'dr-prahlad-gadhavi', 'dr-disha-patel'];
+    let isCrossContaminated = false;
+    for (const docKey of otherDoctors) {
+      if (key !== docKey && candidate.toLowerCase().includes(docKey.replace('dr-', ''))) {
+        isCrossContaminated = true;
+        break;
+      }
+    }
+
     // Sanitize against legacy swapped image / static uploads
     const isPrahladSwapped = (key === 'dr-prahlad-gadhvi') && (
       candidate.includes('aU1QUlSKO9mpYg2rCyxW7d2q0') ||
@@ -96,7 +130,7 @@ export function getProviderImage(provider: any, options?: { forHomepage?: boolea
       candidate.includes('prahlad')
     );
 
-    if (!isPrahladSwapped && !isDevalSwapped) {
+    if (!isCrossContaminated && !isPrahladSwapped && !isDevalSwapped) {
       return candidate;
     }
   }

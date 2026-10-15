@@ -28,8 +28,8 @@ export default function Providers() {
     // Deduplicate by normalized key (e.g. prahlad-gadhavi vs prahlad-gadhvi)
     const canonicalMap = new Map<string, any>();
     rawList.forEach((p) => {
-      // Exclude hidden or inactive doctors
-      if (p.showOnHomepage === false || p.isActive === false) return;
+      // Exclude hidden, inactive doctors, or Dr. Disha Patel from homepage
+      if (p.showOnHomepage === false || p.isActive === false || normalizeProviderKey(p.id || p.slug || p.name) === 'dr-disha-patel') return;
 
       const key = normalizeProviderKey(p.id || p.slug || p.name);
       if (!canonicalMap.has(key)) {
@@ -105,8 +105,8 @@ export default function Providers() {
         </motion.div>
 
         {/* Horizontal Editorial Portraits (NO White Box, NO Card Border) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-10 lg:gap-14">
-          {displayList.slice(0, 3).map((docItem, idx) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10 lg:gap-12">
+          {displayList.map((docItem, idx) => (
             <motion.div 
               key={docItem.id} 
               initial={{ opacity: 0, y: 25 }}
@@ -116,18 +116,33 @@ export default function Providers() {
               className="flex flex-col group"
             >
               
-              {/* 4:5 Large Portrait Photography */}
-              <div className="relative aspect-[4/5] overflow-hidden mb-5 sm:mb-6 bg-[#F4EFE6] rounded-xs">
-                <img
-                  src={docItem.image}
-                  alt={docItem.altText}
-                  className="w-full h-full group-hover:scale-104 transition-transform duration-700 filter grayscale-[12%] group-hover:grayscale-0"
-                  style={{
-                    objectFit: (docItem.mediaItem?.objectFit as any) || 'cover',
-                    objectPosition: docItem.mediaItem?.position || 'center 20%'
-                  }}
-                  referrerPolicy="no-referrer"
-                />
+              {/* 4:5 Large Portrait Photography or Editorial Text Card */}
+              <div className="relative aspect-[4/5] mb-5 sm:mb-6 bg-[#F4EFE6] rounded-xs border border-[#D9D0C5] overflow-hidden">
+                {docItem.id === 'dr-disha-patel' || !docItem.image ? (
+                  <div className="w-full h-full p-6 sm:p-8 flex flex-col justify-between bg-[#F4EFE6]">
+                    <div>
+                      <span className="inline-block px-2.5 py-0.5 bg-[#0B1F2A] text-[#F4EFE6] text-[10px] font-semibold uppercase tracking-widest mb-3">
+                        Specialist
+                      </span>
+                      <h4 className="font-serif text-xl text-[#0B1F2A] mb-1">{docItem.name}</h4>
+                      <p className="text-xs text-[#B39A68] font-bold uppercase tracking-wider">{docItem.credentials || 'PT, DPT, GCS'}</p>
+                    </div>
+                    <p className="text-xs text-[#5A6264] italic line-clamp-3">
+                      "Evidence-based physical therapy & functional recovery without portrait display."
+                    </p>
+                  </div>
+                ) : (
+                  <img
+                    src={docItem.image}
+                    alt={docItem.altText}
+                    className="w-full h-full group-hover:scale-104 transition-transform duration-700 filter grayscale-[12%] group-hover:grayscale-0"
+                    style={{
+                      objectFit: (docItem.mediaItem?.objectFit as any) || 'cover',
+                      objectPosition: docItem.mediaItem?.position || 'center 20%'
+                    }}
+                    referrerPolicy="no-referrer"
+                  />
+                )}
               </div>
 
               {/* Provider Name Below */}
